@@ -1,7 +1,6 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+/// module for interpret r1cs as ML Extension used by linear sumcheck
+pub mod drivers;
+
+/// error package
+mod error;
+pub use error::Error;
