@@ -2,7 +2,7 @@
 
 use rand::RngCore;
 use r1cs_core::Matrix;
-use algebra_core::{UniformRand};
+use algebra_core::{UniformRand, Field};
 use hashbrown::HashSet;
 
 /// curve instance used for test
@@ -24,4 +24,16 @@ pub fn random_matrix<R: RngCore>(log_size: usize,num_non_zero: usize, rng:&mut R
         mat[x].push((F::rand(rng),y));
     }
     mat
+}
+
+pub fn bits_to_field_elements<F: Field>(mut bits: usize, mut num_bits: usize) -> Vec<F> {
+    let mut result = Vec::new();
+    while num_bits > 0 {
+        let bi = bits & 1;
+        result.push(if bi == 1 {F::one()} else {F::zero()});
+        bits >>= 1;
+        num_bits-=1;
+    }
+
+    result
 }
