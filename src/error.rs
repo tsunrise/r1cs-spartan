@@ -10,7 +10,7 @@ pub enum Error {
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result {
         todo!()
     }
 }

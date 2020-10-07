@@ -11,7 +11,12 @@ algebra-core = { git = "https://github.com/scipr-lab/zexe/", default-features = 
 ark-std = { git = "https://github.com/arkworks-rs/utils/", default-features = false }
 r1cs-core = {git = "https://github.com/scipr-lab/zexe/", default-features = false}
 linear-sumcheck = {git = "https://github.com/arkworks-rs/sumcheck", default-features = false}
+hashbrown = {version = "0.9.1"}
+
+[dev-dependencies]
+rand = {version =  "0.7.3", default-features = false}
+algebra = {git = "https://github.com/scipr-lab/zexe/", default-features = false, features = ["ed_on_bls12_381"]}
 
 [features]
 default = ["std"]
-std = ["algebra-core/std","r1cs-core/std","ark-std/std","linear-sumcheck/std"]
+std = ["algebra-core/std","r1cs-core/std","ark-std/std","linear-sumcheck/std", "rand/std"]
