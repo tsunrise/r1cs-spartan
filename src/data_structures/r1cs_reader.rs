@@ -31,8 +31,8 @@ fn xy_decompose(xy: usize, s: usize) -> (usize, usize) {
 
 impl<F: Field> MatrixExtension<F> {
     /// setup the MLExtension
-    pub fn setup(matrix: Rc<Matrix<F>>,
-                 num_constraints: usize) -> Result<Self, crate::Error>{
+    pub fn new(matrix: Rc<Matrix<F>>,
+               num_constraints: usize) -> Result<Self, crate::Error>{
         // sanity check
         if !num_constraints.is_power_of_two() {
             // for now, we assume number constraints are power of two.
@@ -62,13 +62,16 @@ impl<F: Field> MatrixExtension<F> {
         Ok(s)
     }
 
-    /// Convert the matrix A(x,y) to sum over y A(x,y)
+    /// Convert the matrix A(x,y) to sum over y A(x,y)Z(y), given z
     ///
-    /// return: multilinear extension sum over y A(x,y) with `num_constraints` variables
-    pub fn sum_over_y(&self) -> Result<MLExtensionArray<F>, crate::Error> {
+    /// return: multilinear extension sum over y A(x,y)Z(y) with `num_constraints` variables
+    pub fn sum_over_y(&self, z: &MLExtensionArray<F>) -> Result<MLExtensionArray<F>, crate::Error> {
+        if z.num_variables()? != algebra_core::log2(self.num_constraints) as usize {
+            return Err(crate::Error::InvalidArgument(Some("invalid z".into())))
+        }
         let temp: Vec<F> = self.constraint.iter()
             .map(|v| v.iter()
-                .map(|(a, _)| a)
+                .map(|(a, y)| *a * z.eval_binary(*y).unwrap())
                 .sum())
             .collect();
         Ok(MLExtensionArray::from_slice(&temp)?)
@@ -119,7 +122,7 @@ mod test{
         let mut rng = test_rng();
         let matrix= Rc::new(random_matrix(6, 1 << 9, &mut rng));
         let expected_evaluations = &matrix[0b110010];
-        let mat_ext = MatrixExtension::setup(matrix.clone(), 1<<6).unwrap();
+        let mat_ext = MatrixExtension::new(matrix.clone(), 1<<6).unwrap();
         let eval_point = vec![F::zero(), F::one(), F::zero(), F::zero(), F::one(), F::one()];
         let actual_evaluations = mat_ext.eval_on_x(&eval_point).unwrap();
         for (val, idx) in expected_evaluations {

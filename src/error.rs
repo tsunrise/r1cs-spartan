@@ -6,7 +6,9 @@ pub enum Error {
     /// bad argument
     InvalidArgument(Option<String>),
     /// linear sumcheck error
-    SumCheckError(linear_sumcheck::Error)
+    SumCheckError(linear_sumcheck::Error),
+    /// wrong private witness value
+    WrongWitness
 }
 
 impl fmt::Display for Error {
