@@ -8,7 +8,7 @@ pub enum Error {
     /// linear sumcheck error
     SumCheckError(linear_sumcheck::Error),
     /// wrong private witness value
-    WrongWitness
+    WrongWitness(Option<String>)
 }
 
 impl fmt::Display for Error {

@@ -1,9 +1,9 @@
 //! reader interpreting r1cs matrix as dense MLExtension
 
-use algebra_core::{Field};
+use ark_ff::Field;
 use ark_std::rc::Rc;
 use linear_sumcheck::data_structures::{MLExtensionArray, SparseMLExtensionMap};
-use r1cs_core::Matrix;
+use ark_relations::r1cs::Matrix;
 use linear_sumcheck::data_structures::ml_extension::{MLExtension, SparseMLExtension};
 pub struct MatrixExtension<F: Field> {
     constraint: Rc<Matrix<F>>,
@@ -48,8 +48,8 @@ impl<F: Field> MatrixExtension<F> {
         let idx_bound = num_constraints;
         // each term should within num_constraints
         for line in matrix.iter() {
-            for (_, idx) in line {
-                if *idx >= idx_bound {
+            for &(_, idx) in line {
+                if idx >= idx_bound {
                     return Err(crate::Error::InvalidArgument(Some("sparse index out of bound".into())))
                 }
             }
@@ -66,7 +66,7 @@ impl<F: Field> MatrixExtension<F> {
     ///
     /// return: multilinear extension sum over y A(x,y)Z(y) with `num_constraints` variables
     pub fn sum_over_y(&self, z: &MLExtensionArray<F>) -> Result<MLExtensionArray<F>, crate::Error> {
-        if z.num_variables()? != algebra_core::log2(self.num_constraints) as usize {
+        if z.num_variables()? != ark_std::log2(self.num_constraints) as usize {
             return Err(crate::Error::InvalidArgument(Some("invalid z".into())))
         }
         let temp: Vec<F> = self.constraint.iter()
@@ -87,7 +87,7 @@ impl<F: Field> MatrixExtension<F> {
         }
 
         // create a sparse map
-        let s = algebra_core::log2(self.num_constraints) as usize;
+        let s = ark_std::log2(self.num_constraints) as usize;
         let mut map = Vec::new();
         for (x, arr) in self.constraint.iter().enumerate() {
             for (value, y) in arr.iter() {
@@ -110,7 +110,7 @@ impl<F: Field> MatrixExtension<F> {
 
 #[cfg(test)]
 mod test{
-    use algebra_core::{test_rng, Zero, One};
+    use ark_ff::{test_rng, Zero, One};
     use crate::test_utils::{random_matrix, F};
     use crate::data_structures::r1cs_reader::MatrixExtension;
     use ark_std::rc::Rc;

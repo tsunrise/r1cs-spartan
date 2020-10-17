@@ -1,12 +1,12 @@
 //! testing utility
 
 use rand::RngCore;
-use r1cs_core::Matrix;
-use algebra_core::{UniformRand, Field};
+use ark_relations::r1cs::Matrix;
+use ark_ff::{UniformRand, Field};
 use hashbrown::HashSet;
 
-/// curve instance used for test
-pub type F = algebra::ed_on_bls12_381::Fr;
+/// curve instance used for tests
+pub type F = ark_test_curves::bls12_381::Fr;
 pub fn random_matrix<R: RngCore>(log_size: usize,num_non_zero: usize, rng:&mut R) -> Matrix<F> {
     let bound = 1 << log_size;
     let mut mat: Vec<_> = (0..bound)

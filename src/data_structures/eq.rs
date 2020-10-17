@@ -1,4 +1,4 @@
-use algebra_core::Field;
+use ark_ff::Field;
 use linear_sumcheck::data_structures::MLExtensionArray;
 
 /// Generate polynomial P(x) = eq(t,x) represented by products of multilinear polynomials
@@ -24,7 +24,7 @@ pub fn eq_extension<F: Field>(t: &[F]) -> Result<Vec<MLExtensionArray<F>>, crate
 mod test{
     use crate::test_utils::bits_to_field_elements;
     use crate::data_structures::eq::eq_extension;
-    use algebra_core::{One, Zero};
+    use ark_ff::{One, Zero};
     use linear_sumcheck::data_structures::ml_extension::MLExtension;
 
     #[test]
