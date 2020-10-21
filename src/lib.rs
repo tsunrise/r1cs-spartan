@@ -1,4 +1,5 @@
 #[macro_use]
+#[allow(unused_imports)]
 extern crate ark_relations;
 
 use ark_ff::{Field, ToBytes};
@@ -10,7 +11,7 @@ use linear_sumcheck::data_structures::{Blake2s512Rng, MLExtensionArray};
 use linear_sumcheck::data_structures::ml_extension::MLExtension;
 use linear_sumcheck::data_structures::random::FeedableRNG;
 use linear_sumcheck::ml_sumcheck::{MLSumcheck, MLSumcheckClaim};
-use linear_sumcheck::ml_sumcheck::t13::{T13Claim, T13Sumcheck};
+use linear_sumcheck::ml_sumcheck::t13::{T13Sumcheck};
 use rand::RngCore;
 
 pub use error::Error;
@@ -102,7 +103,7 @@ impl<F: Field> Spartan<F> {
             .collect();
         // calculate z(r_v|0..0)
         let z_rv_0 = z.eval_at(&r_v)?;
-        rng.feed_randomness(&z_rv_0);
+        rng.feed_randomness(&z_rv_0)?;
         // todo: send proof of z_rv_0
 
 

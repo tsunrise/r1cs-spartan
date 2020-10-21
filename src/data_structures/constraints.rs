@@ -1,4 +1,4 @@
-use ark_ff::{Field, UniformRand};
+use ark_ff::Field;
 use ark_std::marker::PhantomData;
 use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError, ConstraintSystemRef, Variable, LinearCombination};
 use rand::{RngCore, Rng};

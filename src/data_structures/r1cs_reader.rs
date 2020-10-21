@@ -23,6 +23,7 @@ fn xy_combine(x: usize, y: usize, s: usize) -> usize {
 }
 
 #[inline]
+#[allow(dead_code)]
 fn xy_decompose(xy: usize, s: usize) -> (usize, usize) {
     let x = xy & ((1 << s) - 1);
     let y = xy >> s;
