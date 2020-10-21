@@ -261,12 +261,12 @@ impl<F: Field> Spartan<F> {
                                                        &proof.first_sumcheck_claim,
                                                        &proof.first_sumcheck_proof)?;
 
-        rng.feed_randomness(&proof.first_sumcheck_proof);
+        rng.feed_randomness(&proof.first_sumcheck_proof)?;
         let r_x = first_subclaim.fixed_arguments;
         let va = proof.va;
         let vb = proof.vb;
         let vc = proof.vc;
-        rng.feed_randomness(&vec![va, vb, vc]);
+        rng.feed_randomness(&vec![va, vb, vc])?;
 
         // verify subclaim
         {
@@ -315,9 +315,9 @@ impl<F: Field> Spartan<F> {
         let z_ry = proof.eval_z_at_ry;
         let expected = second_subclaim.evaluation;
         let actual =
-            a_rx_ry * z_ry
-                + b_rx_ry * z_ry
-                + c_rx_ry * z_ry
+            r_a * a_rx_ry * z_ry
+                + r_b * b_rx_ry * z_ry
+                + r_c * c_rx_ry * z_ry
             ;
         if expected != actual {
             return Err(crate::Error::WrongWitness(Some("Cannot verify matrix A, B, C".into())))
@@ -333,16 +333,16 @@ impl<F: Field> Spartan<F> {
 
 #[cfg(test)]
 mod test {
-    use ark_ff::{Field, test_rng};
-    use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, Variable};
+    use ark_ff::{test_rng};
+
     use ark_std::rc::Rc;
 
-    use crate::data_structures::constraints::TestSynthesizer;
+
     use crate::Spartan;
     use crate::test_utils::generate_circuit_with_random_input;
 
     #[test]
-    fn test_generate_proof() {
+    fn test_proof_and_verify() {
         type F = ark_test_curves::bls12_381::Fr;
         const SIZE_Z: usize = 1 << 10;
         const NUM_PUBLIC: usize = 1 << 4;
@@ -355,17 +355,29 @@ mod test {
                                                &mut rng);
 
         let matrices = cs.to_matrices().unwrap();
-        let mut rng = test_rng();
+        let matrices_a = Rc::new(matrices.a);
+        let matrices_b = Rc::new(matrices.b);
+        let matrices_c = Rc::new(matrices.c);
         let sk = Spartan::<F>::setup(&mut rng);
+        println!("proving");
         let proof = Spartan::<F>::prove(
             &sk,
-            Rc::new(matrices.a),
-            Rc::new(matrices.b),
-            Rc::new(matrices.c),
+            matrices_a.clone(),
+            matrices_b.clone(),
+            matrices_c.clone(),
             &v,
             &w,
             true,
         ).unwrap();
+        println!("verifying");
+        let verify_result = Spartan::<F>::verify(&sk, matrices_a.clone(),
+                                                 matrices_b.clone(),
+                                                 matrices_c.clone(),
+                                                 SIZE_Z,
+                                                 &v,
+                                                 &proof).unwrap();
+        assert!(verify_result);
+
     }
 
 
