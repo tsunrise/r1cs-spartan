@@ -74,6 +74,10 @@ impl<F: Field> Spartan<F> {
             return Err(crate::Error::InvalidArgument(Some("Matrix width should be a power of 2.".into())));
         }
         let log_n = ark_std::log2(n) as usize;
+        if !v.len().is_power_of_two() {
+            return Err(crate::Error::InvalidArgument(Some("Size of public input should be power of two. ".into())));
+        }
+        let log_v = ark_std::log2(v.len()) as usize;
 
         // this one serves the randomness oracle
         let mut rng = Blake2s512Rng::setup();
@@ -85,11 +89,22 @@ impl<F: Field> Spartan<F> {
 
         rng.feed(&("replace this as commit(w)".as_bytes()))?;
 
+
         let z = MLExtensionArray::from_vec(
             v.iter()
                 .chain(w.iter())
                 .map(|x| *x)
                 .collect())?;
+
+        // get r_v from verifier and extend it by zero
+        let r_v: Vec<_>= (0..log_v).map(|_|F::rand(&mut rng))
+            .chain((0..(log_n - log_v)).map(|_|F::zero()))
+            .collect();
+        // calculate z(r_v|0..0)
+        let z_rv_0 = z.eval_at(&r_v)?;
+        rng.feed_randomness(&z_rv_0);
+        // todo: send proof of z_rv_0
+
 
         let matrix_a = MatrixExtension::new(matrix_a, n)?;
         let matrix_b = MatrixExtension::new(matrix_b, n)?;
@@ -202,6 +217,9 @@ impl<F: Field> Spartan<F> {
         ;
         Ok(Proof {
             commit_w: (),
+            z_rv_0,
+            proof_for_z_rv_0: (),
+
             first_sumcheck_claim,
             first_sumcheck_proof,
 
@@ -233,12 +251,25 @@ impl<F: Field> Spartan<F> {
             return Err(crate::Error::InvalidArgument(Some("Matrix width should be a power of 2.".into())));
         }
         let log_n = ark_std::log2(num_variables) as usize;
+        let log_v = ark_std::log2(v.len()) as usize;
         // setup rng
         let mut rng = Blake2s512Rng::setup();
         rng.feed(&sk)?;
 
         // todo: receive commitment
         rng.feed(&("replace this as commit(w)".as_bytes()))?;
+
+        // generate r_v
+        let r_v: Vec<_>= (0..log_v).map(|_|F::rand(&mut rng)).collect();
+
+        // receive z(r_v|0..0)
+        let z_rv_0 = proof.z_rv_0;
+        // todo: verify if z_rv_0 is correct
+        rng.feed_randomness(&z_rv_0)?;
+        let v = MLExtensionArray::from_slice(v)?;
+        if v.eval_at(&r_v)? != z_rv_0 {
+            return Err(crate::Error::InvalidArgument(Some("public witness is inconsistent with proof".into())));
+        }
 
         // generate tor and eq
         let tor = Self::generate_tor(log_n, &mut rng);

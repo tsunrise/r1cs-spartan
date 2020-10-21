@@ -6,6 +6,9 @@ pub type Proof<F> = Transcript<F>;
 pub struct Transcript<F: Field> {
     pub commit_w: (), // todo
 
+    pub z_rv_0: F, 
+    pub proof_for_z_rv_0: (), // todo
+    
     pub first_sumcheck_claim: T13Claim<F>,
     pub first_sumcheck_proof: T13Proof<F>,
 
