@@ -1,41 +1,59 @@
-use ark_ff::Field;
+use ark_ff::{Field, UniformRand};
 use ark_std::marker::PhantomData;
 use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError, ConstraintSystemRef, Variable, LinearCombination};
+use rand::{RngCore, Rng};
 
 
-pub struct TestSynthesizer<F: Field> {
-    num_constraints: usize,
+pub struct TestSynthesizer<'a, R: RngCore, F: Field> {
+    num_private_variables: usize,
+    num_public_variables: usize,
+    rng: &'a mut R,
     _marker: PhantomData<F>
 }
 
-impl<F: Field> TestSynthesizer<F> {
-    pub fn new(num_constraints: usize) -> Self {
+impl<'a, R: RngCore, F: Field> TestSynthesizer<'a, R, F> {
+    pub fn new(num_private_variables: usize, num_public_variables: usize, rng: &'a mut R) -> Self {
+        if num_public_variables <= 3 {
+            panic!("number of public variables should be greater to 3");
+        }
         Self {
-            num_constraints,
+            num_private_variables,
+            num_public_variables,
+            rng,
             _marker: PhantomData,
         }
     }
 }
 
-impl<F: Field> ConstraintSynthesizer<F> for TestSynthesizer<F> {
+impl<'a, R: RngCore, F: Field> ConstraintSynthesizer<F> for TestSynthesizer<'a, R, F> {
     /// code copied from
     /// [groth16 repo](https://github.com/scipr-lab/zexe/blob/master/groth16/examples/snark-scalability/constraints.rs)
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
         let mut assignments = Vec::new();
-        let mut a_val = F::one();
+        let mut a_val = F::rand(self.rng);
         let mut a_var = cs.new_input_variable(|| Ok(a_val))?;
         assignments.push((a_val, a_var));
 
-        let mut b_val = F::one();
+        let mut b_val = F::rand(self.rng);
         let mut b_var = cs.new_input_variable(|| Ok(b_val))?;
         assignments.push((a_val, a_var));
 
-        for i in 0..self.num_constraints - 1 {
+        // add addition public variables
+        for _ in 0..self.num_public_variables - 3 {
+            let val = F::rand(self.rng);
+            let var = cs.new_input_variable(|| Ok(val))?;
+            assignments.push((val, var));
+        }
+
+        for i in 0..self.num_private_variables - 1 {
+            let offset_var_index = self.rng.gen_range(2, self.num_public_variables);
+            let (offset_val, offset_var) = assignments[offset_var_index];
+
             if i % 2 != 0 {
-                let c_val = a_val * &b_val;
+                let c_val = a_val * (b_val + offset_val);
                 let c_var = cs.new_witness_variable(|| Ok(c_val))?;
 
-                cs.enforce_constraint(lc!() + a_var, lc!() + b_var, lc!() + c_var)?;
+                cs.enforce_constraint(lc!() + a_var, lc!() + b_var + offset_var, lc!() + c_var)?;
 
                 assignments.push((c_val, c_var));
                 a_val = b_val;
@@ -43,10 +61,10 @@ impl<F: Field> ConstraintSynthesizer<F> for TestSynthesizer<F> {
                 b_val = c_val;
                 b_var = c_var;
             } else {
-                let c_val = a_val + &b_val;
+                let c_val = a_val + &b_val + offset_val;
                 let c_var = cs.new_witness_variable(|| Ok(c_val))?;
 
-                cs.enforce_constraint(lc!() + a_var + b_var, lc!() + Variable::One, lc!() + c_var)?;
+                cs.enforce_constraint(lc!() + a_var + b_var + offset_var, lc!() + Variable::One, lc!() + c_var)?;
 
                 assignments.push((c_val, c_var));
                 a_val = b_val;
@@ -70,7 +88,7 @@ impl<F: Field> ConstraintSynthesizer<F> for TestSynthesizer<F> {
         let c_var = cs.new_witness_variable(|| Ok(c_val))?;
 
         cs.enforce_constraint(lc!() + a_lc, lc!() + b_lc, lc!() + c_var)?;
-
+        // TODO: copy above to add density
         Ok(())
     }
 }

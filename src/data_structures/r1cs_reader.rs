@@ -30,7 +30,7 @@ fn xy_decompose(xy: usize, s: usize) -> (usize, usize) {
 }
 
 impl<F: Field> MatrixExtension<F> {
-    /// setup the MLExtension
+    /// setup the MLExtension. The provided matrix should be square.
     pub fn new(matrix: Rc<Matrix<F>>,
                num_constraints: usize) -> Result<Self, crate::Error>{
         // sanity check

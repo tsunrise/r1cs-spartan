@@ -1,27 +1,29 @@
 #[macro_use]
 extern crate ark_relations;
 
+use ark_ff::{Field, ToBytes};
+use ark_relations::r1cs::Matrix;
+use ark_std::io::{Result as IOResult, Write};
+use ark_std::marker::PhantomData;
+use ark_std::rc::Rc;
+use linear_sumcheck::data_structures::{Blake2s512Rng, MLExtensionArray};
+use linear_sumcheck::data_structures::ml_extension::MLExtension;
+use linear_sumcheck::data_structures::random::FeedableRNG;
+use linear_sumcheck::ml_sumcheck::{MLSumcheck, MLSumcheckClaim};
+use linear_sumcheck::ml_sumcheck::t13::{T13Claim, T13Sumcheck};
+use rand::RngCore;
+
+pub use error::Error;
+
+use crate::data_structures::eq::eq_extension;
+use crate::data_structures::proof::Proof;
+use crate::data_structures::r1cs_reader::MatrixExtension;
+
 /// module for interpret r1cs as ML Extension used by linear sumcheck
 pub mod data_structures;
 
 /// error package
 mod error;
-pub use error::Error;
-use ark_ff::{Field, ToBytes};
-use ark_std::marker::PhantomData;
-use ark_relations::r1cs::{Matrix};
-use crate::data_structures::proof::Proof;
-use linear_sumcheck::data_structures::{Blake2s512Rng, MLExtensionArray};
-use linear_sumcheck::data_structures::random::FeedableRNG;
-use rand::RngCore;
-use ark_std::io::{Write, Result as IOResult};
-use crate::data_structures::eq::eq_extension;
-use crate::data_structures::r1cs_reader::MatrixExtension;
-use linear_sumcheck::ml_sumcheck::t13::T13Sumcheck;
-use linear_sumcheck::ml_sumcheck::{MLSumcheck, MLSumcheckClaim};
-use linear_sumcheck::data_structures::ml_extension::MLExtension;
-use ark_std::rc::Rc;
-
 /// testing utilities
 #[cfg(test)]
 pub(crate) mod test_utils;
@@ -31,6 +33,7 @@ pub struct Spartan<F: Field>(
 );
 
 pub struct SessionKey([u8; 512]);
+
 impl ToBytes for SessionKey {
     fn write<W: Write>(&self, mut writer: W) -> IOResult<()> {
         writer.write(&self.0[..])?;
@@ -39,30 +42,29 @@ impl ToBytes for SessionKey {
 }
 
 impl<F: Field> Spartan<F> {
-
     /// setup the protocol and generate the session key
     pub fn setup<R: RngCore>(rng: &mut R) -> SessionKey {
-        let mut sk = SessionKey([0u8;512]);
+        let mut sk = SessionKey([0u8; 512]);
         rng.fill_bytes(&mut sk.0);
         sk
     }
 
     /// Prove that the r1cs instance is satisfiable with witness w.
     ///
-    /// * `matrix_a`: Matrix A
-    /// * `matrix_b`: Matrix B
-    /// * `matrix_c`: Matrix C
+    /// * `matrix_a`: Matrix A of size (v + w) * (v + w)
+    /// * `matrix_b`: Matrix B of size (v + w) * (v + w)
+    /// * `matrix_c`: Matrix C of size (v + w) * (v + w)
     /// * `v`: public witness
     /// * `w`: private witness
     /// * `sk`: session key that is setup by both prover and verifier
     /// * `verify_validity`: whether need to verify that the witness the true
     pub fn prove(sk: &SessionKey,
-             matrix_a: Rc<Matrix<F>>,
-             matrix_b: Rc<Matrix<F>>,
-             matrix_c: Rc<Matrix<F>>,
-             v: &[F],
-             w: &[F],
-             verify_validity: bool
+                 matrix_a: Rc<Matrix<F>>,
+                 matrix_b: Rc<Matrix<F>>,
+                 matrix_c: Rc<Matrix<F>>,
+                 v: &[F],
+                 w: &[F],
+                 verify_validity: bool,
     ) -> Result<Proof<F>, crate::Error> {
 
         // sanity check
@@ -78,16 +80,15 @@ impl<F: Field> Spartan<F> {
         // set up the random generator by the matrix
         rng.feed(&sk)?;
 
-        // multivariate polynomial commitment scheme on polynomial expressed by evaluation domains
-        // has not been implemented yet. Ryan plans to implement it in next few months.
-        // leave commit(w) as a todo
+        // todo: commit z
+        // todo: receive randomness and send z(r_v|0...0)
 
         rng.feed(&("replace this as commit(w)".as_bytes()))?;
 
         let z = MLExtensionArray::from_vec(
             v.iter()
                 .chain(w.iter())
-                .map(|x|*x)
+                .map(|x| *x)
                 .collect())?;
 
         let matrix_a = MatrixExtension::new(matrix_a, n)?;
@@ -102,9 +103,9 @@ impl<F: Field> Spartan<F> {
         let eq = eq_extension(&tor)?;
 
         let mut g_zt_x_first = vec![sum_az_over_y.clone(), sum_bz_over_y.clone()];
-        g_zt_x_first.extend(eq.iter().map(|mle|mle.clone()));
+        g_zt_x_first.extend(eq.iter().map(|mle| mle.clone()));
         let mut g_zt_x_second = vec![sum_cz_over_y.negate()?];
-        g_zt_x_second.extend(eq.iter().map(|mle|mle.clone()));
+        g_zt_x_second.extend(eq.iter().map(|mle| mle.clone()));
         let g_zt_x = vec![&g_zt_x_first[..], &g_zt_x_second[..]];
 
         let iv = {
@@ -115,7 +116,7 @@ impl<F: Field> Spartan<F> {
 
         let (first_sumcheck_claim,
             first_sumcheck_proof,
-            first_sumcheck_subclaim) = T13Sumcheck::generate_claim_and_proof(&iv , &g_zt_x)?;
+            first_sumcheck_subclaim) = T13Sumcheck::generate_claim_and_proof(&iv, &g_zt_x)?;
 
         if verify_validity {
             // sanity check the claim
@@ -164,7 +165,7 @@ impl<F: Field> Spartan<F> {
             &cz_rx_on_y[..]
         ];
         let iv_round2 = {
-            let mut iv =  vec![0; 256];
+            let mut iv = vec![0; 256];
             rng.fill_bytes(&mut iv);
             iv
         };
@@ -189,24 +190,26 @@ impl<F: Field> Spartan<F> {
             let expected = r2subclaim.evaluation;
             let actual =
                 az_rx_on_y[0].eval_at(&r_y)? * z_ry
-                + bz_rx_on_y[0].eval_at(&r_y)? * z_ry
-                + cz_rx_on_y[0].eval_at(&r_y)? * z_ry
-            ;
+                    + bz_rx_on_y[0].eval_at(&r_y)? * z_ry
+                    + cz_rx_on_y[0].eval_at(&r_y)? * z_ry
+                ;
             if expected != actual {
                 return Err(crate::Error::WrongWitness(Some("Cannot verify matrix A, B, C".into())))
             }
         }
 
 
-        ;Ok(Proof{
+        ;
+        Ok(Proof {
             commit_w: (),
-
+            first_sumcheck_claim,
             first_sumcheck_proof,
 
             va,
             vb,
             vc,
 
+            second_sumcheck_claim: r2claim,
             second_sumcheck_proof: r2proof,
 
             eval_z_at_ry: z_ry,
@@ -215,36 +218,151 @@ impl<F: Field> Spartan<F> {
         })
     }
 
+    pub fn verify(sk: &SessionKey,
+                  matrix_a: Rc<Matrix<F>>,
+                  matrix_b: Rc<Matrix<F>>,
+                  matrix_c: Rc<Matrix<F>>,
+                  num_variables: usize,
+                  v: &[F],
+                  proof: &Proof<F>) -> Result<bool, crate::Error> {
+        // sanity check
+        if num_variables < v.len() {
+            return Err(crate::Error::InvalidArgument(Some("num_variables < v.len()".into())))
+        }
+        if !num_variables.is_power_of_two() {
+            return Err(crate::Error::InvalidArgument(Some("Matrix width should be a power of 2.".into())));
+        }
+        let log_n = ark_std::log2(num_variables) as usize;
+        // setup rng
+        let mut rng = Blake2s512Rng::setup();
+        rng.feed(&sk)?;
+
+        // todo: receive commitment
+        rng.feed(&("replace this as commit(w)".as_bytes()))?;
+
+        // generate tor and eq
+        let tor = Self::generate_tor(log_n, &mut rng);
+        let eq = eq_extension(&tor)?;
+
+        let iv = {
+            let mut iv = vec![0u8; 256];
+            rng.fill_bytes(&mut iv);
+            iv
+        };
+
+        // verify sumcheck proof
+        if proof.first_sumcheck_claim.asserted_sum() != F::zero() {
+            return Err(crate::Error::WrongWitness(Some("First claimed sum is not zero. ".into())))
+        }
+        if proof.first_sumcheck_claim.num_variables() != log_n as u32 {
+            return Err(crate::Error::WrongWitness(Some("First claim has wrong number of variables. ".into())))
+        }
+        let first_subclaim = T13Sumcheck::verify_proof(&iv,
+                                                       &proof.first_sumcheck_claim,
+                                                       &proof.first_sumcheck_proof)?;
+
+        rng.feed_randomness(&proof.first_sumcheck_proof);
+        let r_x = first_subclaim.fixed_arguments;
+        let va = proof.va;
+        let vb = proof.vb;
+        let vc = proof.vc;
+        rng.feed_randomness(&vec![va, vb, vc]);
+
+        // verify subclaim
+        {
+            let mut eq_rx = F::one();
+            for p in eq.iter() {
+                eq_rx *= p.eval_at(&r_x)?;
+            }
+            if (va * vb - vc) * eq_rx != first_subclaim.evaluation {
+                return Err(crate::Error::WrongWitness(Some("first sumcheck has wrong subclaim".into())))
+            }
+        }
+
+        // generate ra, rb, rc
+        let r_a = F::rand(&mut rng);
+        let r_b = F::rand(&mut rng);
+        let r_c = F::rand(&mut rng);
+
+        let iv_round2 = {
+            let mut iv = vec![0; 256];
+            rng.fill_bytes(&mut iv);
+            iv
+        };
+
+        // round 2 sumcheck
+        if proof.second_sumcheck_claim.asserted_sum() != r_a * va + r_b * vb + r_c * vc {
+            return Err(crate::Error::WrongWitness(Some("second sumcheck inconsistent assertion".into())));
+        }
+        if proof.second_sumcheck_claim.num_variables() != log_n as u32 {
+            return Err(crate::Error::WrongWitness(Some("Second claim has wrong number of variables. ".into())))
+        }
+
+        let second_subclaim = T13Sumcheck::verify_proof(&iv_round2,
+                                                 &proof.second_sumcheck_claim,
+                                                 &proof.second_sumcheck_proof)?;
+
+        let matrix_a = MatrixExtension::new(matrix_a, num_variables)?;
+        let matrix_b = MatrixExtension::new(matrix_b, num_variables)?;
+        let matrix_c = MatrixExtension::new(matrix_c, num_variables)?;
+
+        let r_y = second_subclaim.fixed_arguments;
+
+        let a_rx_ry = matrix_a.eval_on_x(&r_x)?.eval_at(&r_y)?;
+        let b_rx_ry = matrix_b.eval_on_x(&r_x)?.eval_at(&r_y)?;
+        let c_rx_ry = matrix_c.eval_on_x(&r_x)?.eval_at(&r_y)?;
+
+        let z_ry = proof.eval_z_at_ry;
+        let expected = second_subclaim.evaluation;
+        let actual =
+            a_rx_ry * z_ry
+                + b_rx_ry * z_ry
+                + c_rx_ry * z_ry
+            ;
+        if expected != actual {
+            return Err(crate::Error::WrongWitness(Some("Cannot verify matrix A, B, C".into())))
+        }
+
+        return Ok(true);
+    }
+
     fn generate_tor(log_n: usize, rng: &mut Blake2s512Rng) -> Vec<F> {
-        (0..log_n).map(|_|F::rand(rng)).collect()
+        (0..log_n).map(|_| F::rand(rng)).collect()
     }
 }
 
 #[cfg(test)]
-mod test{
-    use crate::data_structures::constraints::TestSynthesizer;
-    use ark_relations::r1cs::{ConstraintSystemRef, ConstraintSystem, ConstraintSynthesizer, Variable};
-    use ark_ff::test_rng;
-    use crate::Spartan;
+mod test {
+    use ark_ff::{Field, test_rng};
+    use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, Variable};
     use ark_std::rc::Rc;
+
+    use crate::data_structures::constraints::TestSynthesizer;
+    use crate::Spartan;
 
     #[test]
     fn test_generate_proof() {
         type F = ark_test_curves::bls12_381::Fr;
-        const SIZE_Z: usize = 32;
-        let synthesizer = TestSynthesizer::<F>::new(SIZE_Z);
+        const SIZE_Z: usize = 1 << 10;
+        const NUM_PUBLIC: usize = 1 << 4;
+        const NUM_PRIVATE: usize = SIZE_Z - NUM_PUBLIC;
+        let mut rng = test_rng();
+        let synthesizer = TestSynthesizer::new(NUM_PRIVATE,
+                                               NUM_PUBLIC,
+                                               &mut rng);
         let cs = ConstraintSystem::new_ref();
-        cs.set_mode(ark_relations::r1cs::SynthesisMode::Prove {construct_matrices: true});
+        cs.set_mode(ark_relations::r1cs::SynthesisMode::Prove { construct_matrices: true });
 
         // synthesize the r1cs constraint
         synthesizer.generate_constraints(cs.clone()).unwrap();
+        make_matrices_square(cs.clone(), SIZE_Z);
 
+        cs.inline_all_lcs();
 
-        let v: Vec<_> = (0..3).map(|x|cs.assigned_value(Variable::Instance(x)).unwrap()).collect();
-        let w: Vec<_> = (0..(SIZE_Z)).map(|x|cs.assigned_value(Variable::Witness(x)).unwrap()).collect();
+        let v: Vec<_> = (0..cs.num_instance_variables()).map(|x| cs.assigned_value(Variable::Instance(x)).unwrap()).collect();
+        let w: Vec<_> = (0..cs.num_witness_variables()).map(|x| cs.assigned_value(Variable::Witness(x)).unwrap()).collect();
 
         let matrices = cs.to_matrices().unwrap();
-
         let mut rng = test_rng();
         let sk = Spartan::<F>::setup(&mut rng);
         let proof = Spartan::<F>::prove(
@@ -254,14 +372,31 @@ mod test{
             Rc::new(matrices.c),
             &v,
             &w,
-            true
+            true,
         ).unwrap();
+    }
 
+    pub(crate) fn make_matrices_square<F: Field>(
+        cs: ConstraintSystemRef<F>,
+        num_formatted_variables: usize,
+    ) {
+        let num_constraints = cs.num_constraints();
+        let matrix_padding = ((num_formatted_variables as isize) - (num_constraints as isize)).abs();
 
-
-
-
-
+        if num_formatted_variables > num_constraints {
+            // Add dummy constraints of the form 0 * 0 == 0
+            for _ in 0..matrix_padding {
+                cs.enforce_constraint(lc!(), lc!(), lc!())
+                    .expect("enforce 0 * 0 == 0 failed");
+            }
+        } else {
+            // Add dummy unconstrained variables
+            for _ in 0..matrix_padding {
+                let _ = cs
+                    .new_witness_variable(|| Ok(F::one()))
+                    .expect("alloc failed");
+            }
+        }
     }
 }
 
