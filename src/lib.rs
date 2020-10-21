@@ -339,6 +339,7 @@ mod test {
 
     use crate::data_structures::constraints::TestSynthesizer;
     use crate::Spartan;
+    use crate::test_utils::generate_circuit_with_random_input;
 
     #[test]
     fn test_generate_proof() {
@@ -347,20 +348,11 @@ mod test {
         const NUM_PUBLIC: usize = 1 << 4;
         const NUM_PRIVATE: usize = SIZE_Z - NUM_PUBLIC;
         let mut rng = test_rng();
-        let synthesizer = TestSynthesizer::new(NUM_PRIVATE,
-                                               NUM_PUBLIC,
+        let (cs, v, w) =
+            generate_circuit_with_random_input(NUM_PUBLIC,
+                                               NUM_PRIVATE,
+                                               true,
                                                &mut rng);
-        let cs = ConstraintSystem::new_ref();
-        cs.set_mode(ark_relations::r1cs::SynthesisMode::Prove { construct_matrices: true });
-
-        // synthesize the r1cs constraint
-        synthesizer.generate_constraints(cs.clone()).unwrap();
-        make_matrices_square(cs.clone(), SIZE_Z);
-
-        cs.inline_all_lcs();
-
-        let v: Vec<_> = (0..cs.num_instance_variables()).map(|x| cs.assigned_value(Variable::Instance(x)).unwrap()).collect();
-        let w: Vec<_> = (0..cs.num_witness_variables()).map(|x| cs.assigned_value(Variable::Witness(x)).unwrap()).collect();
 
         let matrices = cs.to_matrices().unwrap();
         let mut rng = test_rng();
@@ -376,28 +368,7 @@ mod test {
         ).unwrap();
     }
 
-    pub(crate) fn make_matrices_square<F: Field>(
-        cs: ConstraintSystemRef<F>,
-        num_formatted_variables: usize,
-    ) {
-        let num_constraints = cs.num_constraints();
-        let matrix_padding = ((num_formatted_variables as isize) - (num_constraints as isize)).abs();
 
-        if num_formatted_variables > num_constraints {
-            // Add dummy constraints of the form 0 * 0 == 0
-            for _ in 0..matrix_padding {
-                cs.enforce_constraint(lc!(), lc!(), lc!())
-                    .expect("enforce 0 * 0 == 0 failed");
-            }
-        } else {
-            // Add dummy unconstrained variables
-            for _ in 0..matrix_padding {
-                let _ = cs
-                    .new_witness_variable(|| Ok(F::one()))
-                    .expect("alloc failed");
-            }
-        }
-    }
 }
 
 
