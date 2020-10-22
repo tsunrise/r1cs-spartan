@@ -2,6 +2,9 @@
 #[allow(unused_imports)]
 extern crate ark_relations;
 
+#[macro_use]
+extern crate bench_utils;
+
 use ark_ff::{Field, ToBytes};
 use ark_relations::r1cs::Matrix;
 use ark_std::io::{Result as IOResult, Write};
@@ -28,6 +31,9 @@ mod error;
 /// testing utilities
 #[cfg(test)]
 pub(crate) mod test_utils;
+
+#[cfg(test)]
+mod benchmark;
 
 pub struct Spartan<F: Field>(
     #[doc(hidden)] PhantomData<F>
