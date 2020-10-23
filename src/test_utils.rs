@@ -45,11 +45,13 @@ pub fn generate_circuit_with_random_input<F: Field, R: RngCore>(
     num_public_variables: usize,
     num_private_variables: usize,
     pad_to_square: bool,
+    density: u8,
     rng: &mut R,
 ) -> (ConstraintSystemRef<F>, Vec<F>, Vec<F>) {
     let synthesizer = TestSynthesizer::new(
         num_private_variables,
         num_public_variables,
+        density,
         rng,
     );
 

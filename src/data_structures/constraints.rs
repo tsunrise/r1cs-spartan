@@ -8,11 +8,12 @@ pub struct TestSynthesizer<'a, R: RngCore, F: Field> {
     num_private_variables: usize,
     num_public_variables: usize,
     rng: &'a mut R,
+    density: u8,
     _marker: PhantomData<F>
 }
 
 impl<'a, R: RngCore, F: Field> TestSynthesizer<'a, R, F> {
-    pub fn new(num_private_variables: usize, num_public_variables: usize, rng: &'a mut R) -> Self {
+    pub fn new(num_private_variables: usize, num_public_variables: usize, density: u8, rng: &'a mut R) -> Self {
         if num_public_variables <= 3 {
             panic!("number of public variables should be greater to 3");
         }
@@ -20,6 +21,7 @@ impl<'a, R: RngCore, F: Field> TestSynthesizer<'a, R, F> {
             num_private_variables,
             num_public_variables,
             rng,
+            density,
             _marker: PhantomData,
         }
     }
@@ -45,8 +47,10 @@ impl<'a, R: RngCore, F: Field> ConstraintSynthesizer<F> for TestSynthesizer<'a, 
             assignments.push((val, var));
         }
 
-        for i in 0..self.num_private_variables - 1 {
-            let offset_var_index = self.rng.gen_range(2, self.num_public_variables);
+        let num_sparse_constraints = (self.num_private_variables - 1) * (510 - self.density as usize) / 510;
+
+        for i in 0..num_sparse_constraints {
+            let offset_var_index = self.rng.gen_range(2, self.num_public_variables - 2);
             let (offset_val, offset_var) = assignments[offset_var_index];
 
             if i % 2 != 0 {
@@ -74,21 +78,23 @@ impl<'a, R: RngCore, F: Field> ConstraintSynthesizer<F> for TestSynthesizer<'a, 
             }
         }
 
-        let mut a_lc = LinearCombination::zero();
-        let mut b_lc = LinearCombination::zero();
-        let mut c_val = F::zero();
+        for _ in num_sparse_constraints..self.num_private_variables {
+            let mut a_lc = LinearCombination::zero();
+            let mut b_lc = LinearCombination::zero();
+            let mut c_val = F::zero();
 
-        for (val, var) in assignments {
-            a_lc = a_lc + var;
-            b_lc = b_lc + var;
-            c_val = c_val + &val;
+            for &(val, var) in &assignments {
+                a_lc = a_lc + var;
+                b_lc = b_lc + var;
+                c_val = c_val + &val;
+            }
+            c_val = c_val.square();
+
+            let c_var = cs.new_witness_variable(|| Ok(c_val))?;
+
+            cs.enforce_constraint(lc!() + a_lc, lc!() + b_lc, lc!() + c_var)?;
         }
-        c_val = c_val.square();
 
-        let c_var = cs.new_witness_variable(|| Ok(c_val))?;
-
-        cs.enforce_constraint(lc!() + a_lc, lc!() + b_lc, lc!() + c_var)?;
-        // TODO: copy above to add density
         Ok(())
     }
 }

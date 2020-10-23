@@ -1,8 +1,9 @@
 use ark_ff::Field;
 use linear_sumcheck::ml_sumcheck::t13::{T13Proof, T13Claim};
-
+use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, SerializationError, Read, Write};
 pub type Proof<F> = Transcript<F>;
 /// message sent by the prover
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct Transcript<F: Field> {
     pub commit_w: (), // todo
 

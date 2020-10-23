@@ -8,7 +8,9 @@ pub enum Error {
     /// linear sumcheck error
     SumCheckError(linear_sumcheck::Error),
     /// wrong private witness value
-    WrongWitness(Option<String>)
+    WrongWitness(Option<String>),
+    /// serialization error
+    SerializationError(ark_serialize::SerializationError)
 }
 
 impl fmt::Display for Error {
@@ -20,5 +22,11 @@ impl fmt::Display for Error {
 impl From<linear_sumcheck::Error> for Error {
     fn from(e: linear_sumcheck::Error) -> Self {
         Error::SumCheckError(e)
+    }
+}
+
+impl From<ark_serialize::SerializationError> for Error {
+    fn from(e: ark_serialize::SerializationError) -> Self {
+        Error::SerializationError(e)
     }
 }

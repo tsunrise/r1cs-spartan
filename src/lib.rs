@@ -2,6 +2,7 @@
 #[allow(unused_imports)]
 extern crate ark_relations;
 
+#[cfg(test)]
 #[macro_use]
 extern crate bench_utils;
 
@@ -374,11 +375,11 @@ mod test {
     use ark_ff::{test_rng};
 
     use ark_std::rc::Rc;
-
+    use ark_serialize::{CanonicalSerialize, CanonicalDeserialize};
 
     use crate::Spartan;
     use crate::test_utils::generate_circuit_with_random_input;
-
+    use crate::data_structures::proof::Proof;
     #[test]
     fn test_proof_and_verify() {
         type F = ark_test_curves::bls12_381::Fr;
@@ -390,6 +391,7 @@ mod test {
             generate_circuit_with_random_input(NUM_PUBLIC,
                                                NUM_PRIVATE,
                                                true,
+                                               0,
                                                &mut rng);
 
         let matrices = cs.to_matrices().unwrap();
@@ -397,6 +399,9 @@ mod test {
         let matrices_b = Rc::new(matrices.b);
         let matrices_c = Rc::new(matrices.c);
         let sk = Spartan::<F>::setup(&mut rng);
+        println!("|v| = {}, |w| = {}, |a!=0| = {}, #|b!=0|={}, #|c!=0| = {}",
+                 matrices.num_instance_variables, matrices.num_witness_variables,
+                 matrices.a_num_non_zero, matrices.b_num_non_zero, matrices.c_num_non_zero);
         println!("proving");
         let proof = Spartan::<F>::prove(
             &sk,
@@ -407,6 +412,12 @@ mod test {
             &w,
             true,
         ).unwrap();
+        let proof_serialized = {
+            let mut data: Vec<u8> = Vec::new();
+            proof.serialize(&mut data).unwrap();
+            data
+        };
+        let proof = Proof::deserialize(&proof_serialized[..]).unwrap();
         println!("verifying");
         let verify_result = Spartan::<F>::verify(&sk, matrices_a.clone(),
                                                  matrices_b.clone(),
