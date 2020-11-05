@@ -108,8 +108,8 @@ impl<F: Field> AHPForSpartan<F> {
     }
 
     /// receive commitment, generate r_v
-    pub fn verifier_first_round<R: RngCore>(state: VerifierFirstState<F>,
-                                            p_msg: ProverFirstMessage, rng: &mut R) ->
+    pub fn verify_first_round<R: RngCore>(state: VerifierFirstState<F>,
+                                          p_msg: ProverFirstMessage, rng: &mut R) ->
                                             SResult<(VerifierSecondState<F>, VerifierFirstMessage<F>)> {
         let commit = p_msg.commitment;
         let vk = state.vk;
@@ -123,9 +123,9 @@ impl<F: Field> AHPForSpartan<F> {
     }
 
     /// verify of z_rv_0 is correct, and send random tor
-    pub fn verifier_second_round<R: RngCore>(state: VerifierSecondState<F>,
-                                             p_msg: ProverSecondMessage<F>,
-                                             rng: &mut R) -> SResult<(VerifierThirdState<F>,
+    pub fn verify_second_round<R: RngCore>(state: VerifierSecondState<F>,
+                                           p_msg: ProverSecondMessage<F>,
+                                           rng: &mut R) -> SResult<(VerifierThirdState<F>,
                                                                       VerifierSecondMessage<F>)> {
         let z_rv_0 = p_msg.z_rv_0;
         // todo: verify z_rv_0 is correct using proof
@@ -151,8 +151,8 @@ impl<F: Field> AHPForSpartan<F> {
     }
 
     /// initial first sumcheck verifier
-    pub fn verifier_third_round(state: VerifierThirdState<F>, p_msg: ProverThirdMessage)
-    -> SResult<(VerifierFirstSumcheckState<F>, Option<MLVerifierMsg<F>>)> {
+    pub fn verify_third_round(state: VerifierThirdState<F>, p_msg: ProverThirdMessage)
+                              -> SResult<(VerifierFirstSumcheckState<F>, Option<MLVerifierMsg<F>>)> {
         let index_info = p_msg.ml_index_info;
         // sanity check the index info
         if index_info.num_variables != state.vk.log_n {
@@ -170,8 +170,8 @@ impl<F: Field> AHPForSpartan<F> {
     }
 
     /// sumcheck round except for last round
-    pub fn verifier_first_sumcheck_ongoing_round<R: RngCore>(state: VerifierFirstSumcheckState<F>, p_msg: MLProverMsg<F>, rng: &mut R)
-                                                             ->SResult<(VerifierFirstSumcheckState<F>, Option<MLVerifierMsg<F>>)> {
+    pub fn verify_first_sumcheck_ongoing_round<R: RngCore>(state: VerifierFirstSumcheckState<F>, p_msg: MLProverMsg<F>, rng: &mut R)
+                                                           ->SResult<(VerifierFirstSumcheckState<F>, Option<MLVerifierMsg<F>>)> {
         let (v_msg, ml_verifier) = AHPForMLSumcheck::verify_round(&p_msg, state.ml_verifier, rng)?;
         let next_state = VerifierFirstSumcheckState {ml_verifier, eq: state.eq, commit: state.commit, vk: state.vk};
         Ok((next_state, v_msg))
@@ -179,8 +179,8 @@ impl<F: Field> AHPForSpartan<F> {
     /// last round of first sumcheck verifier. send last randomness to prover.
     ///
     /// message produced by this round will be received by prover's round_tail function
-    pub fn verifier_first_sumcheck_final_round<R: RngCore>(state: VerifierFirstSumcheckState<F>, p_msg: MLProverMsg<F>, rng: &mut R)
-                                                           -> SResult<(VerifierFourthState<F>, VerifierThirdMessage<F>)> {
+    pub fn verify_first_sumcheck_final_round<R: RngCore>(state: VerifierFirstSumcheckState<F>, p_msg: MLProverMsg<F>, rng: &mut R)
+                                                         -> SResult<(VerifierFourthState<F>, VerifierThirdMessage<F>)> {
         let (_, ml_verifier) = AHPForMLSumcheck::verify_round(&p_msg, state.ml_verifier, rng)?;
         let subclaim = AHPForMLSumcheck::subclaim(ml_verifier)?;
         let final_randomness = *subclaim.point.last().unwrap();
@@ -196,10 +196,10 @@ impl<F: Field> AHPForSpartan<F> {
     }
 
     /// receive va, rb, vc, and sample ra, rb, rc for next sumcheck
-    pub fn verifier_fourth_round<R: RngCore>(state: VerifierFourthState<F>,
-                                             p_msg: ProverFourthMessage<F>,
-                                             rng: &mut R)
-                                             -> SResult<(VerifierFifthState<F>, VerifierFourthMessage<F>)> {
+    pub fn verify_fourth_round<R: RngCore>(state: VerifierFourthState<F>,
+                                           p_msg: ProverFourthMessage<F>,
+                                           rng: &mut R)
+                                           -> SResult<(VerifierFifthState<F>, VerifierFourthMessage<F>)> {
         let (va, vb, vc) = (p_msg.va, p_msg.vb, p_msg.vc);
         // verify subclaim
         let first_subclaim = state.first_subclaim;
@@ -233,8 +233,8 @@ impl<F: Field> AHPForSpartan<F> {
     }
 
     /// start second linear sumcheck
-    pub fn verifier_fifth_round(state: VerifierFifthState<F>, p_msg: ProverFifthMessage)
-                                            -> SResult<(VerifierSecondSumcheckState<F>, Option<MLVerifierMsg<F>>)> {
+    pub fn verify_fifth_round(state: VerifierFifthState<F>, p_msg: ProverFifthMessage)
+                              -> SResult<(VerifierSecondSumcheckState<F>, Option<MLVerifierMsg<F>>)> {
         let index_info = p_msg.index_info;
         // sanity check the index info
         if index_info.num_variables != state.vk.log_n {
@@ -256,8 +256,8 @@ impl<F: Field> AHPForSpartan<F> {
         Ok((next_state, None))
     }
     /// doing second sumcheck except for last round
-    pub fn verifier_second_sumcheck_ongoing_round<R: RngCore>(state: VerifierSecondSumcheckState<F>, p_msg: MLProverMsg<F>, rng: &mut R)
-                                                              -> SResult<(VerifierSecondSumcheckState<F>, Option<MLVerifierMsg<F>>)> {
+    pub fn verify_second_sumcheck_ongoing_round<R: RngCore>(state: VerifierSecondSumcheckState<F>, p_msg: MLProverMsg<F>, rng: &mut R)
+                                                            -> SResult<(VerifierSecondSumcheckState<F>, Option<MLVerifierMsg<F>>)> {
         let (v_msg, ml_verifier) = AHPForMLSumcheck::verify_round(&p_msg, state.ml_verifier, rng)?;
         let next_state = VerifierSecondSumcheckState {
             vk: state.vk,
@@ -271,8 +271,8 @@ impl<F: Field> AHPForSpartan<F> {
         Ok((next_state, v_msg))
     }
     /// last round of sumcheck, send final randomness
-    pub fn verifier_second_sumcheck_final_round<R: RngCore>(state: VerifierSecondSumcheckState<F>, p_msg: MLProverMsg<F>, rng: &mut R)
-                                                            -> SResult<(VerifierSixthState<F>, VerifierFifthMessage<F>)> {
+    pub fn verify_second_sumcheck_final_round<R: RngCore>(state: VerifierSecondSumcheckState<F>, p_msg: MLProverMsg<F>, rng: &mut R)
+                                                          -> SResult<(VerifierSixthState<F>, VerifierFifthMessage<F>)> {
         let (_, ml_verifier) = AHPForMLSumcheck::verify_round(&p_msg, state.ml_verifier, rng)?;
         let subclaim = AHPForMLSumcheck::subclaim(ml_verifier)?;
         let final_randomness = *subclaim.point.last().unwrap();
@@ -290,8 +290,8 @@ impl<F: Field> AHPForSpartan<F> {
         Ok((next_state, msg))
     }
     /// receive z(r_y), verify final claim
-    pub fn verifier_sixth_round(state: VerifierSixthState<F>, p_msg: ProverFinalMessage<F>)
-                                -> SResult<bool>
+    pub fn verify_sixth_round(state: VerifierSixthState<F>, p_msg: ProverFinalMessage<F>)
+                              -> SResult<bool>
     {
         let z_ry = p_msg.z_ry;
         // todo: verify if z_ry is correct using proof

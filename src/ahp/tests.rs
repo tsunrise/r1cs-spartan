@@ -24,45 +24,45 @@ fn test_circuit<R: RngCore>(log_n: usize, log_v: usize, rng: &mut R) -> SResult<
     let vs = AHPForSpartan::verifier_init(vk);
 
     let (ps, pm) = AHPForSpartan::prover_first_round(ps)?;
-    let (vs, vm) = AHPForSpartan::verifier_first_round(vs, pm, rng)?;
+    let (vs, vm) = AHPForSpartan::verify_first_round(vs, pm, rng)?;
 
     let (ps, pm) = AHPForSpartan::prover_second_round(ps, vm)?;
-    let (vs, vm) = AHPForSpartan::verifier_second_round(vs, pm, rng)?;
+    let (vs, vm) = AHPForSpartan::verify_second_round(vs, pm, rng)?;
 
     let (mut ps, pm) = AHPForSpartan::prover_third_round(ps, vm)?;
-    let (mut vs, mut vm) = AHPForSpartan::verifier_third_round(vs, pm)?;
+    let (mut vs, mut vm) = AHPForSpartan::verify_third_round(vs, pm)?;
 
     for _ in 0..(log_n - 1) {
         let (ps_new, pm) = AHPForSpartan::prove_first_sumcheck_round(ps, vm)?;
         ps = ps_new;
-        let (vs_new, vm_new) = AHPForSpartan::verifier_first_sumcheck_ongoing_round(vs, pm, rng)?;
+        let (vs_new, vm_new) = AHPForSpartan::verify_first_sumcheck_ongoing_round(vs, pm, rng)?;
         vs = vs_new;
         vm = vm_new;
     }
 
     let (ps, pm) = AHPForSpartan::prove_first_sumcheck_round(ps, vm)?;
-    let (vs, vm) = AHPForSpartan::verifier_first_sumcheck_final_round(vs, pm, rng)?;
+    let (vs, vm) = AHPForSpartan::verify_first_sumcheck_final_round(vs, pm, rng)?;
 
     let (ps, pm) = AHPForSpartan::prove_fourth_round(ps, vm)?;
-    let (vs, vm) = AHPForSpartan::verifier_fourth_round(vs, pm, rng)?;
+    let (vs, vm) = AHPForSpartan::verify_fourth_round(vs, pm, rng)?;
 
     let (mut ps, pm) = AHPForSpartan::prove_fifth_round(ps, vm)?;
-    let (mut vs, mut vm) = AHPForSpartan::verifier_fifth_round(vs, pm)?;
+    let (mut vs, mut vm) = AHPForSpartan::verify_fifth_round(vs, pm)?;
 
     for _ in 0..(log_n - 1) {
         let (ps_new, pm) = AHPForSpartan::prove_second_sumcheck_round(ps, vm)?;
         ps = ps_new;
         let (vs_new, vm_new)
-            = AHPForSpartan::verifier_second_sumcheck_ongoing_round(vs, pm, rng)?;
+            = AHPForSpartan::verify_second_sumcheck_ongoing_round(vs, pm, rng)?;
         vs = vs_new;
         vm = vm_new;
     }
 
     let (ps, pm) = AHPForSpartan::prove_second_sumcheck_round(ps, vm)?;
-    let (vs, vm) = AHPForSpartan::verifier_second_sumcheck_final_round(vs, pm, rng)?;
+    let (vs, vm) = AHPForSpartan::verify_second_sumcheck_final_round(vs, pm, rng)?;
 
     let pm = AHPForSpartan::prove_sixth_round(ps, vm)?;
-    let result = AHPForSpartan::verifier_sixth_round(vs, pm)?;
+    let result = AHPForSpartan::verify_sixth_round(vs, pm)?;
 
     if result {Ok(())} else {Err(crate::Error::WrongWitness(Some("cannot verify".into())))}
 }
