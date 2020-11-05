@@ -49,7 +49,10 @@ fn benchmark() {
     type F = ark_test_curves::bls12_381::Fr;
     let mut rng = test_rng();
 
-    println!("Benchmark: Prover and Verifier Runtime with different matrix size with same sparsity");
+    println!("Spartan Benchmark\nNote: As commitment scheme has not been used, \
+    the runtime does not include commit time. \n");
+
+    println!("Benchmark: Prover and Verifier Runtime with different matrix size with same sparsity\n");
     for i in 7..15{
         let (r1cs, v, w)
             = generate_circuit_with_random_input::<F, _>(32,
@@ -59,7 +62,7 @@ fn benchmark() {
 
         test_circuit(r1cs.to_matrices().unwrap(), v, w, &mut rng).expect("Failed to test circuit");
     }
-    println!("Benchmark: Prover and Verifier Runtime with same matrix size with different sparsity");
+    println!("Benchmark: Prover and Verifier Runtime with same matrix size with different sparsity\n");
     for i in 0..10{
         let density = (255 * i / 10) as u8;
         let (r1cs, v, w)

@@ -26,7 +26,7 @@ pub struct ProverThirdState<F: Field> {
 }
 
 /// state when prover is doing first sumcheck
-pub struct ProverFourthState<F: Field> {
+pub struct ProverFirstSumcheckState<F: Field> {
     pk: IndexPK<F>,
     z: MLExtensionArray<F>,
     sum_az_over_y: MLExtensionArray<F>,
@@ -41,7 +41,7 @@ pub struct ProverFifthState<F: Field> {
     r_x: Vec<F>,
 }
 
-pub struct ProverSixthState<F: Field> {
+pub struct ProverSecondSumcheckState<F: Field> {
     z: MLExtensionArray<F>,
     ml_prover_state: MLProverState<F>,
 }
@@ -74,10 +74,12 @@ pub struct ProverFifthMessage {
 }
 
 /// z(r_y)
-pub struct ProverFinalMessage<F: Field> {
+pub struct ProverSixthMessage<F: Field> {
     pub z_ry: F,
     pub proof_for_z_ry: (), // todo: replace this as a proof using commitment
 }
+/// final message
+pub type ProverFinalMessage<F> = ProverSixthMessage<F>;
 
 impl<F: Field> AHPForSpartan<F> {
     /// initialize the prover
@@ -90,7 +92,7 @@ impl<F: Field> AHPForSpartan<F> {
         // todo: commit z
         Ok((ProverSecondState { pk: state.pk }, ProverFirstMessage { commitment: "replace this as commit(w)".into() }))
     }
-    /// receive r_v, send z_rv_0, prepare for sumcheck
+    /// receive r_v, send z_rv_0
     pub fn prover_second_round(state: ProverSecondState<F>, v_msg: VerifierFirstMessage<F>)
                                -> Result<(ProverThirdState<F>, ProverSecondMessage<F>), crate::Error> {
         let pk = state.pk;
@@ -109,10 +111,9 @@ impl<F: Field> AHPForSpartan<F> {
         Ok((state, msg))
     }
     /// Receive random tor from verifier and prepare for the first sumcheck.
-    ///
-    /// This is a transition round. Message sent by this round is empty.
+    /// send sumcheck index information
     pub fn prover_third_round(state: ProverThirdState<F>, v_msg: VerifierSecondMessage<F>)
-                              -> Result<(ProverFourthState<F>, ProverThirdMessage), crate::Error> {
+                              -> Result<(ProverFirstSumcheckState<F>, ProverThirdMessage), crate::Error> {
         let tor = v_msg.tor;
         let eq = eq_extension(&tor)?;
         let pk = state.pk;
@@ -126,13 +127,13 @@ impl<F: Field> AHPForSpartan<F> {
         let mut g_zt_x_second = vec![sum_cz_over_y.negate()?];
         g_zt_x_second.extend(eq.iter().map(|mle| mle.clone()));
         let mut g_zt_x = ArithmeticCombination::new(pk.log_n);
-        g_zt_x.add_product(g_zt_x_first.into_iter());
-        g_zt_x.add_product(g_zt_x_second.into_iter());
+        g_zt_x.add_product(g_zt_x_first.into_iter())?;
+        g_zt_x.add_product(g_zt_x_second.into_iter())?;
         let ml_index = AHPForMLSumcheck::convert_to_index(g_zt_x)?;
         let ml_index_info = ml_index.info();
         let ml_prover_state = AHPForMLSumcheck::prover_init(&ml_index);
 
-        let next_state = ProverFourthState {
+        let next_state = ProverFirstSumcheckState {
             pk,
             z,
             sum_az_over_y,
@@ -147,8 +148,8 @@ impl<F: Field> AHPForSpartan<F> {
     }
 
     /// first sumcheck
-    pub fn prove_fourth_round(mut state: ProverFourthState<F>, v_msg: Option<MLVerifierMsg<F>>)
-                              -> Result<(ProverFourthState<F>, MLProverMsg<F>), crate::Error> {
+    pub fn prove_first_sumcheck_round(mut state: ProverFirstSumcheckState<F>, v_msg: Option<MLVerifierMsg<F>>)
+                                      -> Result<(ProverFirstSumcheckState<F>, MLProverMsg<F>), crate::Error> {
         let (mlp_msg, new_prover_state) = AHPForMLSumcheck::prove_round(state.ml_prover_state,
                                                                         &v_msg)?;
         state.ml_prover_state = new_prover_state;
@@ -156,8 +157,8 @@ impl<F: Field> AHPForSpartan<F> {
     }
 
     /// verifier send the final point, prover send va, vb, vc
-    pub fn prove_fourth_round_tail(mut state: ProverFourthState<F>, v_msg: VerifierThirdMessage<F>)
-                                   -> Result<(ProverFifthState<F>, ProverFourthMessage<F>), crate::Error> {
+    pub fn prove_fourth_round(state: ProverFirstSumcheckState<F>, v_msg: VerifierThirdMessage<F>)
+                              -> Result<(ProverFifthState<F>, ProverFourthMessage<F>), crate::Error> {
         let mut r_x = state.ml_prover_state.randomness;
         r_x.push(v_msg.last_random_point);
 
@@ -179,7 +180,7 @@ impl<F: Field> AHPForSpartan<F> {
     }
     /// receive ra, rb, rc, and prepare for second sumcheck
     pub fn prove_fifth_round(state: ProverFifthState<F>, v_msg: VerifierFourthMessage<F>)
-                             -> Result<(ProverSixthState<F>, ProverFifthMessage), crate::Error>
+                             -> Result<(ProverSecondSumcheckState<F>, ProverFifthMessage), crate::Error>
     {
         let r_a = v_msg.r_a;
         let r_b = v_msg.r_b;
@@ -190,29 +191,29 @@ impl<F: Field> AHPForSpartan<F> {
         let bz_rx_on_y = vec![state.pk.matrix_b.eval_on_x(&r_x)?.multiply(r_b)?, z.clone()];
         let cz_rx_on_y = vec![state.pk.matrix_c.eval_on_x(&r_x)?.multiply(r_c)?, z.clone()];
         let mut round2_poly = ArithmeticCombination::new(state.pk.log_n);
-        round2_poly.add_product(az_rx_on_y.into_iter());
-        round2_poly.add_product(bz_rx_on_y.into_iter());
-        round2_poly.add_product(cz_rx_on_y.into_iter());
+        round2_poly.add_product(az_rx_on_y.into_iter())?;
+        round2_poly.add_product(bz_rx_on_y.into_iter())?;
+        round2_poly.add_product(cz_rx_on_y.into_iter())?;
         let index = AHPForMLSumcheck::convert_to_index(round2_poly)?;
         let ml_prover_state = AHPForMLSumcheck::prover_init(&index);
 
-        let next_state = ProverSixthState { z, ml_prover_state };
+        let next_state = ProverSecondSumcheckState { z, ml_prover_state };
         let msg = ProverFifthMessage { index_info: index.info() };
 
         Ok((next_state, msg))
     }
 
     /// second round sumcheck
-    pub fn prove_sixth_round(mut state: ProverSixthState<F>, v_msg: Option<MLVerifierMsg<F>>)
-                             -> Result<(ProverSixthState<F>, MLProverMsg<F>), crate::Error> {
+    pub fn prove_second_sumcheck_round(mut state: ProverSecondSumcheckState<F>, v_msg: Option<MLVerifierMsg<F>>)
+                                       -> Result<(ProverSecondSumcheckState<F>, MLProverMsg<F>), crate::Error> {
         let (mlp_msg, new_prover_state) = AHPForMLSumcheck::prove_round(state.ml_prover_state,
                                                                         &v_msg)?;
         state.ml_prover_state = new_prover_state;
         Ok((state, mlp_msg))
     }
     /// final round: send z(r_y) and its corresponding proof
-    pub fn prove_sixth_round_tail(state: ProverSixthState<F>, v_msg: VerifierFifthMessage<F>)
-                                  -> Result<ProverFinalMessage<F>, crate::Error> {
+    pub fn prove_sixth_round(state: ProverSecondSumcheckState<F>, v_msg: VerifierFifthMessage<F>)
+                             -> Result<ProverFinalMessage<F>, crate::Error> {
         let mut r_y = state.ml_prover_state.randomness;
         r_y.push(v_msg.last_random_point);
         let msg = ProverFinalMessage { z_ry: state.z.eval_at(&r_y)?, proof_for_z_ry: () };

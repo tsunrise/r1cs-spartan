@@ -27,7 +27,11 @@ pub struct IndexVK<F: Field> {
     pub matrix_b: MatrixExtension<F>,
     pub matrix_c: MatrixExtension<F>,
     /// public witness
-    pub v: Vec<F>
+    pub v: Vec<F>,
+    /// log(|v|+|w|)
+    pub log_n: usize,
+    /// log(|v|)
+    pub log_v: usize
 }
 
 impl<F: Field> IndexPK<F> {
@@ -36,7 +40,9 @@ impl<F: Field> IndexPK<F> {
             matrix_a: self.matrix_a.clone(),
             matrix_b: self.matrix_b.clone(),
             matrix_c: self.matrix_c.clone(),
-            v: self.v.clone()
+            v: self.v.clone(),
+            log_n: self.log_n,
+            log_v: self.log_v
         }
     }
 }

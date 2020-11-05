@@ -50,7 +50,7 @@ impl<'a, R: RngCore, F: Field> ConstraintSynthesizer<F> for TestSynthesizer<'a, 
         let num_sparse_constraints = (self.num_private_variables - 1) * (510 - self.density as usize) / 510;
 
         for i in 0..num_sparse_constraints {
-            let offset_var_index = self.rng.gen_range(2, self.num_public_variables - 2);
+            let offset_var_index = self.rng.gen_range(2, self.num_public_variables - 1);
             let (offset_val, offset_var) = assignments[offset_var_index];
 
             if i % 2 != 0 {

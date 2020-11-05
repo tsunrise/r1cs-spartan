@@ -1,12 +1,13 @@
 //! reader interpreting r1cs matrix as dense MLExtension
 
 use ark_ff::Field;
-use ark_std::rc::Rc;
 use linear_sumcheck::data_structures::{MLExtensionArray, SparseMLExtensionMap};
 use ark_relations::r1cs::Matrix;
 use linear_sumcheck::data_structures::ml_extension::{MLExtension, SparseMLExtension};
+use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, Read, Write, SerializationError};
+#[derive(Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct MatrixExtension<F: Field> {
-    constraint: Rc<Matrix<F>>,
+    constraint: Matrix<F>,
     /// number of constraints
     pub num_constraints: usize
 }
@@ -32,7 +33,7 @@ fn xy_decompose(xy: usize, s: usize) -> (usize, usize) {
 
 impl<F: Field> MatrixExtension<F> {
     /// setup the MLExtension. The provided matrix should be square.
-    pub fn new(matrix: Rc<Matrix<F>>,
+    pub fn new(matrix: Matrix<F>,
                num_constraints: usize) -> Result<Self, crate::Error>{
         // sanity check
         if !num_constraints.is_power_of_two() {
@@ -114,14 +115,13 @@ mod test{
     use ark_ff::{test_rng, Zero, One};
     use crate::test_utils::{random_matrix, F};
     use crate::data_structures::r1cs_reader::MatrixExtension;
-    use ark_std::rc::Rc;
     use linear_sumcheck::data_structures::ml_extension::MLExtension;
 
     #[test]
     fn test_eval_on_x_sanity() {
 
         let mut rng = test_rng();
-        let matrix= Rc::new(random_matrix(6, 1 << 9, &mut rng));
+        let matrix= random_matrix(6, 1 << 9, &mut rng);
         let expected_evaluations = &matrix[0b110010];
         let mat_ext = MatrixExtension::new(matrix.clone(), 1<<6).unwrap();
         let eval_point = vec![F::zero(), F::one(), F::zero(), F::zero(), F::one(), F::one()];
