@@ -10,24 +10,25 @@ use crate::ahp::AHPForSpartan;
 use crate::ahp::indexer::IndexPK;
 use crate::ahp::verifier::{VerifierFifthMessage, VerifierFirstMessage, VerifierFourthMessage, VerifierSecondMessage, VerifierThirdMessage};
 use crate::data_structures::eq::eq_extension;
-
+use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, SerializationError, Read, Write};
+use ark_std::string::String;
 pub struct ProverFirstState<F: Field> {
-    pk: IndexPK<F>
+    pub pk: IndexPK<F>
 }
 
 pub struct ProverSecondState<F: Field> {
-    pk: IndexPK<F>
+    pub pk: IndexPK<F>
 }
 
 /// state after sending commitment and z_rv_0
 pub struct ProverThirdState<F: Field> {
-    pk: IndexPK<F>,
+    pub pk: IndexPK<F>,
     z: MLExtensionArray<F>,
 }
 
 /// state when prover is doing first sumcheck
 pub struct ProverFirstSumcheckState<F: Field> {
-    pk: IndexPK<F>,
+    pub pk: IndexPK<F>,
     z: MLExtensionArray<F>,
     sum_az_over_y: MLExtensionArray<F>,
     sum_bz_over_y: MLExtensionArray<F>,
@@ -36,7 +37,7 @@ pub struct ProverFirstSumcheckState<F: Field> {
 }
 
 pub struct ProverFifthState<F: Field> {
-    pk: IndexPK<F>,
+    pub pk: IndexPK<F>,
     z: MLExtensionArray<F>,
     r_x: Vec<F>,
 }
@@ -47,21 +48,25 @@ pub struct ProverSecondSumcheckState<F: Field> {
 }
 
 /// first message is the commitment
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct ProverFirstMessage {
-    pub commitment: String // todo: replace this as a commitment
+    pub commitment: Vec<u8> // todo: replace this as a commitment
 }
 
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct ProverSecondMessage<F: Field> {
     pub z_rv_0: F,
     pub proof_for_z_rv_0: (), // todo: replace this as a proof using commitment
 }
 
 /// contains some sumcheck info
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct ProverThirdMessage {
     pub ml_index_info: MLIndexInfo
 }
 
 /// va, vb, vc
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct ProverFourthMessage<F: Field> {
     pub va: F,
     pub vb: F,
@@ -69,11 +74,13 @@ pub struct ProverFourthMessage<F: Field> {
 }
 
 /// information for second sumcheck
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct ProverFifthMessage {
     pub index_info: MLIndexInfo
 }
 
 /// z(r_y)
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct ProverSixthMessage<F: Field> {
     pub z_ry: F,
     pub proof_for_z_ry: (), // todo: replace this as a proof using commitment
