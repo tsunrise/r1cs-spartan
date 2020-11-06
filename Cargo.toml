@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 ark-ff = { git = "https://github.com/arkworks-rs/algebra", default-features = false}
+ark-ec = { git = "https://github.com/arkworks-rs/algebra", default-features = false}
 ark-std = { git = "https://github.com/arkworks-rs/utils/", default-features = false }
 ark-relations = {git = "https://github.com/arkworks-rs/snark/", default-features = false}
 ark-serialize = {git = "https://github.com/arkworks-rs/algebra", default-features = false}
@@ -22,4 +23,4 @@ bench-utils = {git = "https://github.com/arkworks-rs/utils", features=["print-tr
 
 [features]
 default = ["std"] 
-std = ["ark-ff/std","ark-relations/std","ark-std/std","linear-sumcheck/std", "rand/std", "ark-serialize/std"]
+std = ["ark-ff/std","ark-relations/std","ark-std/std","linear-sumcheck/std", "rand/std", "ark-serialize/std", "ark-ec/std"]
