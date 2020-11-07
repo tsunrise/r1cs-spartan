@@ -48,7 +48,7 @@ fn benchmark() {
     the runtime does not include commit time. \n");
 
     println!("Benchmark: Prover and Verifier Runtime with different matrix size with same sparsity\n");
-    for i in 7..9{
+    for i in 7..14{
         let (r1cs, v, w)
             = generate_circuit_with_random_input::<F, _>(32,
                                                          (2<<i) - 32,
