@@ -11,7 +11,7 @@ use crate::ahp::indexer::IndexPK;
 use crate::ahp::verifier::{VerifierFifthMessage, VerifierFirstMessage, VerifierFourthMessage, VerifierSecondMessage, VerifierThirdMessage};
 use crate::data_structures::eq::eq_extension;
 use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, SerializationError, Read, Write};
-use ark_std::string::String;
+
 pub struct ProverFirstState<F: Field> {
     pub pk: IndexPK<F>
 }

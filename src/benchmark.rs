@@ -3,7 +3,7 @@ use ark_ff::{Field, test_rng};
 use ark_relations::r1cs::{ConstraintMatrices};
 use ark_serialize::{CanonicalSerialize, CanonicalDeserialize};
 use crate::Spartan;
-use ark_std::rc::Rc;
+
 use crate::test_utils::generate_circuit_with_random_input;
 use crate::data_structures::proof::Proof;
 
@@ -12,16 +12,15 @@ fn test_circuit<R: RngCore, F: Field>(matrices: ConstraintMatrices<F>,v: Vec<F>,
                  matrices.num_instance_variables,
                  matrices.num_witness_variables,
                  matrices.a_num_non_zero + matrices.b_num_non_zero + matrices.c_num_non_zero);
-    let session_key = Spartan::<F>::setup(rng);
-    let matrix_a = Rc::new(matrices.a);
-    let matrix_b = Rc::new(matrices.b);
-    let matrix_c = Rc::new(matrices.c);
+
+
+    let timer = start_timer!(||"Index");
+    let index_pk = Spartan::index(matrices.a, matrices.b, matrices.c, v, w)?;
+    let index_vk = index_pk.vk();
+    end_timer!(timer);
 
     let timer = start_timer!(||"Prove Circuit");
-    let proof = Spartan::prove(&session_key,
-                               matrix_a.clone(),
-                               matrix_b.clone(),
-                               matrix_c.clone(),&v, &w, false)?;
+    let proof = Spartan::prove(index_pk)?;
     let proof_serialized = {
         let mut data: Vec<u8> = Vec::new();
         proof.serialize(&mut data)?;
@@ -30,14 +29,10 @@ fn test_circuit<R: RngCore, F: Field>(matrices: ConstraintMatrices<F>,v: Vec<F>,
     end_timer!(timer);
     // test communication cost
     println!("Communication Cost: {} bytes", proof_serialized.len());
-    let timer = start_timer!(||"Verify Circuit");
+    let timer = start_timer!(||"Verify");
     let proof = Proof::deserialize(&proof_serialized[..])?;
-    Spartan::verify(&session_key, matrix_a.clone(),
-                    matrix_b.clone(),
-                    matrix_c.clone(),
-                    matrices.num_instance_variables + matrices.num_witness_variables,
-                    &v,
-                    &proof)?;
+    let result = Spartan::verify(index_vk, proof)?;
+    assert!(result);
     end_timer!(timer);
     println!();
     Ok(())
@@ -53,7 +48,7 @@ fn benchmark() {
     the runtime does not include commit time. \n");
 
     println!("Benchmark: Prover and Verifier Runtime with different matrix size with same sparsity\n");
-    for i in 7..15{
+    for i in 7..9{
         let (r1cs, v, w)
             = generate_circuit_with_random_input::<F, _>(32,
                                                          (2<<i) - 32,

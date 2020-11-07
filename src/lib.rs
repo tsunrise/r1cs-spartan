@@ -11,6 +11,9 @@ use ark_std::marker::PhantomData;
 
 pub mod ahp;
 
+#[cfg(test)]
+mod benchmark;
+
 pub use error::Error;
 use ark_relations::r1cs::Matrix;
 use crate::ahp::indexer::{IndexPK, IndexVK};
@@ -146,10 +149,10 @@ impl<F: Field> Spartan<F> {
         fs_rng.feed_randomness(&pm)?;
         let (mut vs, _) = AHPForSpartan::verify_third_round(vs, pm)?;
 
-        for i in 0..(log_n - 1) {
+        for _ in 0..(log_n - 1) {
             let pm = Self::try_pop(&mut first_sumcheck_messages)?;
             fs_rng.feed_randomness(&pm)?;
-            let (vs_new, _) = AHPForSpartan::verify_first_sumcheck_ongoing_round(vs, pm, &mut rng)?;
+            let (vs_new, _) = AHPForSpartan::verify_first_sumcheck_ongoing_round(vs, pm, &mut fs_rng)?;
             vs = vs_new;
         }
 
