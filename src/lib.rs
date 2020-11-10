@@ -25,6 +25,7 @@ use linear_sumcheck::data_structures::random::FeedableRNG;
 use ark_std::collections::LinkedList;
 use ark_std::iter::FromIterator;
 use linear_sumcheck::ml_sumcheck::ahp::prover::ProverMsg;
+use ark_std::log2;
 
 /// module for interpret r1cs as ML Extension used by linear sumcheck
 pub mod data_structures;
@@ -39,29 +40,36 @@ pub struct Spartan<F: Field>(
     #[doc(hidden)] PhantomData<F>
 );
 
+//todo: change to MLArgumentForR1CS
 impl<F: Field> Spartan<F> {
     /// generate prover key and verifier key
     pub fn index(matrix_a: Matrix<F>,
                  matrix_b: Matrix<F>,
-                 matrix_c: Matrix<F>, v: Vec<F>, w: Vec<F>) -> Result<IndexPK<F>, crate::Error> {
-        AHPForSpartan::index(matrix_a, matrix_b, matrix_c, v, w)
+                 matrix_c: Matrix<F>) -> Result<IndexPK<F>, crate::Error> {
+        AHPForSpartan::index(matrix_a, matrix_b, matrix_c)
     }
 
     /// prove the circuit, giving the index
-    pub fn prove(pk: IndexPK<F>) -> SResult<Proof<F>> {
+    /// * `pk`: prover key
+    /// * `v`: public input
+    /// * `w`: private input
+    pub fn prove(pk: IndexPK<F>, v: Vec<F>, w: Vec<F>) -> SResult<Proof<F>> {
         let log_n = pk.log_n;
 
         let mut fs_rng = Blake2s512Rng::setup();
         fs_rng.feed_randomness(&pk.matrix_a)?;
         fs_rng.feed_randomness(&pk.matrix_b)?;
         fs_rng.feed_randomness(&pk.matrix_c)?;
-        fs_rng.feed_randomness(&pk.v)?;
+        fs_rng.feed_randomness(&v)?;
 
-        let ps = AHPForSpartan::prover_init(pk);
+        let log_v = log2(v.len()) as usize;
+
+
+        let ps = AHPForSpartan::prover_init(pk, v, w)?;
 
         let (ps, pm1) = AHPForSpartan::prover_first_round(ps)?;
         fs_rng.feed_randomness(&pm1)?;
-        let vm = AHPForSpartan::simulate_verify_first_round(&ps.pk, &mut fs_rng);
+        let vm = AHPForSpartan::simulate_verify_first_round(log_v, &mut fs_rng);
 
         let (ps, pm2) = AHPForSpartan::prover_second_round(ps, vm)?;
         fs_rng.feed_randomness(&pm2)?;
@@ -121,10 +129,9 @@ impl<F: Field> Spartan<F> {
         })
 
     }
-    pub fn verify(vk: IndexVK<F>, proof: Proof<F>) -> SResult<bool> {
+    pub fn verify(vk: IndexVK<F>, v: Vec<F>,proof: Proof<F>) -> SResult<bool> {
 
         let log_n = vk.log_n;
-
         let mut first_sumcheck_messages = LinkedList::from_iter(proof.first_sumcheck_messages.into_iter());
         let mut second_sumcheck_messages = LinkedList::from_iter(proof.second_sumcheck_messages.into_iter());
 
@@ -133,9 +140,9 @@ impl<F: Field> Spartan<F> {
         fs_rng.feed_randomness(&vk.matrix_a)?;
         fs_rng.feed_randomness(&vk.matrix_b)?;
         fs_rng.feed_randomness(&vk.matrix_c)?;
-        fs_rng.feed_randomness(&vk.v)?;
+        fs_rng.feed_randomness(&v)?;
 
-        let vs = AHPForSpartan::verifier_init(vk);
+        let vs = AHPForSpartan::verifier_init(vk, v)?;
 
         let pm = proof.prover_first_message;
         fs_rng.feed_randomness(&pm)?;

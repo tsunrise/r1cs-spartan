@@ -7,7 +7,7 @@ use crate::Spartan;
 use crate::test_utils::generate_circuit_with_random_input;
 use crate::data_structures::proof::Proof;
 
-fn test_circuit<R: RngCore, F: Field>(matrices: ConstraintMatrices<F>,v: Vec<F>,w: Vec<F> ,rng: &mut R) -> Result<(),crate::Error> {
+fn test_circuit<R: RngCore, F: Field>(matrices: ConstraintMatrices<F>,v: Vec<F>,w: Vec<F>) -> Result<(),crate::Error> {
         println!("|v| = {}, |w| = {}, #non-zero-entries = {}",
                  matrices.num_instance_variables,
                  matrices.num_witness_variables,
@@ -15,12 +15,12 @@ fn test_circuit<R: RngCore, F: Field>(matrices: ConstraintMatrices<F>,v: Vec<F>,
 
 
     let timer = start_timer!(||"Index");
-    let index_pk = Spartan::index(matrices.a, matrices.b, matrices.c, v, w)?;
+    let index_pk = Spartan::index(matrices.a, matrices.b, matrices.c)?;
     let index_vk = index_pk.vk();
     end_timer!(timer);
 
     let timer = start_timer!(||"Prove Circuit");
-    let proof = Spartan::prove(index_pk)?;
+    let proof = Spartan::prove(index_pk, v.to_vec(), w)?;
     let proof_serialized = {
         let mut data: Vec<u8> = Vec::new();
         proof.serialize(&mut data)?;
@@ -31,7 +31,7 @@ fn test_circuit<R: RngCore, F: Field>(matrices: ConstraintMatrices<F>,v: Vec<F>,
     println!("Communication Cost: {} bytes", proof_serialized.len());
     let timer = start_timer!(||"Verify");
     let proof = Proof::deserialize(&proof_serialized[..])?;
-    let result = Spartan::verify(index_vk, proof)?;
+    let result = Spartan::verify(index_vk,v,proof)?;
     assert!(result);
     end_timer!(timer);
     println!();
@@ -55,7 +55,7 @@ fn benchmark() {
                                                          true,0,
                                                          &mut rng);
 
-        test_circuit(r1cs.to_matrices().unwrap(), v, w, &mut rng).expect("Failed to test circuit");
+        test_circuit(r1cs.to_matrices().unwrap(), v, w).expect("Failed to test circuit");
     }
     println!("Benchmark: Prover and Verifier Runtime with same matrix size with different sparsity\n");
     for i in 0..10{
@@ -66,7 +66,7 @@ fn benchmark() {
                                                          true,density,
                                                          &mut rng);
 
-        test_circuit(r1cs.to_matrices().unwrap(), v, w, &mut rng).expect("Failed to test circuit");
+        test_circuit(r1cs.to_matrices().unwrap(), v, w).expect("Failed to test circuit");
     }
 
 }

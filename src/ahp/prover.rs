@@ -11,12 +11,17 @@ use crate::ahp::indexer::IndexPK;
 use crate::ahp::verifier::{VerifierFifthMessage, VerifierFirstMessage, VerifierFourthMessage, VerifierSecondMessage, VerifierThirdMessage};
 use crate::data_structures::eq::eq_extension;
 use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, SerializationError, Read, Write};
+use crate::error::{SResult, invalid_arg};
 
 pub struct ProverFirstState<F: Field> {
+    pub v: Vec<F>,
+    pub w: Vec<F>,
     pub pk: IndexPK<F>
 }
 
 pub struct ProverSecondState<F: Field> {
+    pub v: Vec<F>,
+    pub w: Vec<F>,
     pub pk: IndexPK<F>
 }
 
@@ -90,22 +95,29 @@ pub type ProverFinalMessage<F> = ProverSixthMessage<F>;
 
 impl<F: Field> AHPForSpartan<F> {
     /// initialize the prover
-    pub fn prover_init(pk: IndexPK<F>) -> ProverFirstState<F> {
-        ProverFirstState { pk }
+    /// * `v`: public input, whose size should be power of 2
+    pub fn prover_init(pk: IndexPK<F>, v: Vec<F>, w: Vec<F>) -> SResult<ProverFirstState<F>> {
+        if !v.len().is_power_of_two() {
+            return Err(invalid_arg("public input should be power of two"))
+        }
+        if v.len() + w.len() != pk.matrix_a.num_constraints {
+            return Err(invalid_arg("|v| + |w| != number of variables"))
+        }
+        Ok(ProverFirstState {v, w, pk })
     }
     /// send commitment
     pub fn prover_first_round(state: ProverFirstState<F>)
                               -> Result<(ProverSecondState<F>, ProverFirstMessage), crate::Error> {
         // todo: commit z
-        Ok((ProverSecondState { pk: state.pk }, ProverFirstMessage { commitment: "replace this as commit(w)".into() }))
+        Ok((ProverSecondState { v: state.v, w: state.w, pk: state.pk }, ProverFirstMessage { commitment: "replace this as commit(w)".into() }))
     }
     /// receive r_v, send z_rv_0
     pub fn prover_second_round(state: ProverSecondState<F>, v_msg: VerifierFirstMessage<F>)
                                -> Result<(ProverThirdState<F>, ProverSecondMessage<F>), crate::Error> {
         let pk = state.pk;
         let z = MLExtensionArray::from_vec(
-            pk.v.iter()
-                .chain(pk.w.iter())
+            state.v.iter()
+                .chain(state.w.iter())
                 .map(|x| *x)
                 .collect())?;
         let r_v = v_msg.r_v;

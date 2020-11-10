@@ -13,6 +13,7 @@ use linear_sumcheck::ml_sumcheck::ahp::verifier::VerifierMsg as MLVerifierMsg;
 use linear_sumcheck::ml_sumcheck::ahp::prover::ProverMsg as MLProverMsg;
 use linear_sumcheck::ml_sumcheck::ahp::AHPForMLSumcheck;
 use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, SerializationError, Read, Write};
+use ark_std::log2;
 
 /// r_v: randomness
 #[derive(CanonicalSerialize, CanonicalDeserialize)]
@@ -46,10 +47,14 @@ pub struct VerifierFifthMessage<F: Field> {
 }
 
 pub struct VerifierFirstState<F: Field> {
+    pub v: Vec<F>,
+    pub log_v: usize,
     pub vk: IndexVK<F>
 }
 
 pub struct VerifierSecondState<F: Field> {
+    pub v: Vec<F>,
+    pub log_v: usize,
     pub vk: IndexVK<F>,
     pub r_v: Vec<F>,
     pub commit: Vec<u8>, // todo: replace this with real commitment
@@ -109,8 +114,12 @@ pub struct VerifierSixthState<F: Field> {
 }
 
 impl<F: Field> AHPForSpartan<F> {
-    pub fn verifier_init(vk: IndexVK<F>) -> VerifierFirstState<F> {
-        VerifierFirstState { vk }
+    pub fn verifier_init(vk: IndexVK<F>, v: Vec<F>) -> SResult<VerifierFirstState<F>> {
+        if !v.len().is_power_of_two() || v.len() > vk.matrix_a.num_constraints {
+            return Err(invalid_arg("public input should be power of two and has size smaller than number of constraints"))
+        }
+        let log_v =log2(v.len()) as usize;
+        Ok(VerifierFirstState {v, log_v, vk })
     }
 
     /// receive commitment, generate r_v
@@ -119,17 +128,17 @@ impl<F: Field> AHPForSpartan<F> {
                                             SResult<(VerifierSecondState<F>, VerifierFirstMessage<F>)> {
         let commit = p_msg.commitment;
         let vk = state.vk;
-        let r_v: Vec<_> = (0..vk.log_v).map(|_| F::rand(rng)).collect();
+        let r_v: Vec<_> = (0..state.log_v).map(|_| F::rand(rng)).collect();
 
         let msg = VerifierFirstMessage {
             r_v: r_v.clone()
         };
-        let next_state = VerifierSecondState { vk, commit, r_v };
+        let next_state = VerifierSecondState { v: state.v,log_v: state.log_v,vk, commit, r_v };
         Ok((next_state, msg))
     }
 
-    pub fn simulate_verify_first_round<R: RngCore>(pk: &IndexPK<F>, rng: &mut R) -> VerifierFirstMessage<F> {
-        let r_v: Vec<_> = (0..pk.log_v).map(|_| F::rand(rng)).collect();
+    pub fn simulate_verify_first_round<R: RngCore>(log_v: usize, rng: &mut R) -> VerifierFirstMessage<F> {
+        let r_v: Vec<_> = (0..log_v).map(|_| F::rand(rng)).collect();
         VerifierFirstMessage { r_v }
     }
 
@@ -142,7 +151,7 @@ impl<F: Field> AHPForSpartan<F> {
         // todo: verify z_rv_0 is correct using proof
 
         let vk = state.vk;
-        let v = MLExtensionArray::from_slice(&vk.v)?;
+        let v = MLExtensionArray::from_vec(state.v)?;
         if v.eval_at(&state.r_v)? != z_rv_0 {
             return Err(invalid_arg("public witness is inconsistent with proof"));
         }

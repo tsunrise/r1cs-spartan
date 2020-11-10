@@ -16,12 +16,12 @@ fn test_circuit<R: RngCore>(log_n: usize, log_v: usize, rng: &mut R) -> SResult<
     let matrices = r1cs.to_matrices().unwrap();
     let pk = AHPForSpartan::index(matrices.a,
                                   matrices.b,
-                                  matrices.c, v, w)?;
+                                  matrices.c)?;
 
     let vk = pk.vk();
 
-    let ps = AHPForSpartan::prover_init(pk);
-    let vs = AHPForSpartan::verifier_init(vk);
+    let ps = AHPForSpartan::prover_init(pk, v.to_vec(), w)?;
+    let vs = AHPForSpartan::verifier_init(vk, v)?;
 
     let (ps, pm) = AHPForSpartan::prover_first_round(ps)?;
     let (vs, vm) = AHPForSpartan::verify_first_round(vs, pm, rng)?;
