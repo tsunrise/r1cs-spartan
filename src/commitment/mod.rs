@@ -1,14 +1,8 @@
-
 use ark_std::marker::PhantomData;
 
-use ark_ff::Field;
+use ark_ec::PairingEngine;
 
-pub struct CommitmentScheme<F: Field> {
-    #[doc(hidden)] _marker: PhantomData<F>
+pub struct CommitmentScheme<E: PairingEngine> {
+    #[doc(hidden)]
+    _marker: PhantomData<E>,
 }
-
-
-
-
-
-

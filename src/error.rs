@@ -10,13 +10,13 @@ pub enum Error {
     /// wrong private witness value
     WrongWitness(Option<String>),
     /// serialization error
-    SerializationError(ark_serialize::SerializationError)
+    SerializationError(ark_serialize::SerializationError),
 }
 
 /// result used for this crate
 pub type SResult<T> = Result<T, Error>;
 
-pub fn invalid_arg(msg: &str) -> Error{
+pub fn invalid_arg(msg: &str) -> Error {
     Error::InvalidArgument(Some(msg.into()))
 }
 

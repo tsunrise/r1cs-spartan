@@ -1,9 +1,11 @@
+use crate::ahp::AHPForSpartan;
+use crate::data_structures::r1cs_reader::MatrixExtension;
+use crate::error::invalid_arg;
+use ark_ec::PairingEngine;
 use ark_ff::Field;
 use ark_relations::r1cs::Matrix;
-use crate::data_structures::r1cs_reader::MatrixExtension;
-use crate::ahp::AHPForSpartan;
-use crate::error::invalid_arg;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Read, SerializationError, Write};
+
 /// Prover's Key
 #[derive(Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct IndexPK<F: Field> {
@@ -26,7 +28,7 @@ pub struct IndexVK<F: Field> {
 
 impl<F: Field> IndexPK<F> {
     pub fn vk(&self) -> IndexVK<F> {
-        IndexVK{
+        IndexVK {
             matrix_a: self.matrix_a.clone(),
             matrix_b: self.matrix_b.clone(),
             matrix_c: self.matrix_c.clone(),
@@ -35,10 +37,12 @@ impl<F: Field> IndexPK<F> {
     }
 }
 // todo: change the name to MLProofForR1CS
-impl<F: Field> AHPForSpartan<F> {
-    pub fn index(matrix_a: Matrix<F>,
-                 matrix_b: Matrix<F>,
-                 matrix_c: Matrix<F>) -> Result<IndexPK<F>, crate::Error> {
+impl<E: PairingEngine> AHPForSpartan<E> {
+    pub fn index(
+        matrix_a: Matrix<E::Fr>,
+        matrix_b: Matrix<E::Fr>,
+        matrix_c: Matrix<E::Fr>,
+    ) -> Result<IndexPK<E::Fr>, crate::Error> {
         // sanity check
         let n = matrix_a.len();
         // for simplicity, this protocol assume width of matrix (n) is a power of 2.
@@ -51,12 +55,11 @@ impl<F: Field> AHPForSpartan<F> {
         let matrix_b = MatrixExtension::new(matrix_b, n)?;
         let matrix_c = MatrixExtension::new(matrix_c, n)?;
 
-        Ok(IndexPK{
+        Ok(IndexPK {
             matrix_a,
             matrix_b,
             matrix_c,
-            log_n
+            log_n,
         })
     }
 }
-

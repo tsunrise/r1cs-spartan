@@ -1,19 +1,25 @@
 use ark_ff::Field;
+use ark_relations::r1cs::{
+    ConstraintSynthesizer, ConstraintSystemRef, LinearCombination, SynthesisError, Variable,
+};
 use ark_std::marker::PhantomData;
-use ark_relations::r1cs::{ConstraintSynthesizer, SynthesisError, ConstraintSystemRef, Variable, LinearCombination};
-use rand::{RngCore, Rng};
-
+use rand::{Rng, RngCore};
 
 pub struct TestSynthesizer<'a, R: RngCore, F: Field> {
     num_private_variables: usize,
     num_public_variables: usize,
     rng: &'a mut R,
     density: u8,
-    _marker: PhantomData<F>
+    _marker: PhantomData<F>,
 }
 
 impl<'a, R: RngCore, F: Field> TestSynthesizer<'a, R, F> {
-    pub fn new(num_private_variables: usize, num_public_variables: usize, density: u8, rng: &'a mut R) -> Self {
+    pub fn new(
+        num_private_variables: usize,
+        num_public_variables: usize,
+        density: u8,
+        rng: &'a mut R,
+    ) -> Self {
         if num_public_variables <= 3 {
             panic!("number of public variables should be greater to 3");
         }
@@ -47,7 +53,8 @@ impl<'a, R: RngCore, F: Field> ConstraintSynthesizer<F> for TestSynthesizer<'a, 
             assignments.push((val, var));
         }
 
-        let num_sparse_constraints = (self.num_private_variables - 1) * (510 - self.density as usize) / 510;
+        let num_sparse_constraints =
+            (self.num_private_variables - 1) * (510 - self.density as usize) / 510;
 
         for i in 0..num_sparse_constraints {
             let offset_var_index = self.rng.gen_range(2, self.num_public_variables - 1);
@@ -68,7 +75,11 @@ impl<'a, R: RngCore, F: Field> ConstraintSynthesizer<F> for TestSynthesizer<'a, 
                 let c_val = a_val + &b_val + offset_val;
                 let c_var = cs.new_witness_variable(|| Ok(c_val))?;
 
-                cs.enforce_constraint(lc!() + a_var + b_var + offset_var, lc!() + Variable::One, lc!() + c_var)?;
+                cs.enforce_constraint(
+                    lc!() + a_var + b_var + offset_var,
+                    lc!() + Variable::One,
+                    lc!() + c_var,
+                )?;
 
                 assignments.push((c_val, c_var));
                 a_val = b_val;

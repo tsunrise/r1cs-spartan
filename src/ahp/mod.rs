@@ -1,13 +1,11 @@
-use ark_ff::Field;
+use ark_ec::PairingEngine;
 use ark_std::marker::PhantomData;
 
+pub mod indexer;
 pub mod prover;
 pub mod verifier;
-pub mod indexer;
 
 #[cfg(test)]
 mod tests;
 
-pub struct AHPForSpartan<F: Field> (
-    #[doc(hidden)] PhantomData<F>
-);
+pub struct AHPForSpartan<E: PairingEngine>(#[doc(hidden)] PhantomData<E>);
