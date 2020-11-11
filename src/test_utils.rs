@@ -7,7 +7,7 @@ use rand::RngCore;
 
 use crate::data_structures::constraints::TestSynthesizer;
 
-/// curve instance used for tests
+/// scalar field used for tests
 pub type F = ark_test_curves::bls12_381::Fr;
 
 pub fn random_matrix<R: RngCore>(log_size: usize, num_non_zero: usize, rng: &mut R) -> Matrix<F> {

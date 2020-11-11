@@ -14,6 +14,8 @@ pub mod ahp;
 #[cfg(test)]
 mod benchmark;
 
+pub mod commitment;
+
 pub use error::Error;
 use ark_relations::r1cs::Matrix;
 use crate::ahp::indexer::{IndexPK, IndexVK};
