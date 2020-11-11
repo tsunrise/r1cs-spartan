@@ -137,7 +137,7 @@ impl<F: Field> AHPForSpartan<F> {
         Ok((next_state, msg))
     }
 
-    pub fn simulate_verify_first_round<R: RngCore>(log_v: usize, rng: &mut R) -> VerifierFirstMessage<F> {
+    pub fn sample_first_round<R: RngCore>(log_v: usize, rng: &mut R) -> VerifierFirstMessage<F> {
         let r_v: Vec<_> = (0..log_v).map(|_| F::rand(rng)).collect();
         VerifierFirstMessage { r_v }
     }

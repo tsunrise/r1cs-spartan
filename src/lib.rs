@@ -69,7 +69,7 @@ impl<F: Field> Spartan<F> {
 
         let (ps, pm1) = AHPForSpartan::prover_first_round(ps)?;
         fs_rng.feed_randomness(&pm1)?;
-        let vm = AHPForSpartan::simulate_verify_first_round(log_v, &mut fs_rng);
+        let vm = AHPForSpartan::sample_first_round(log_v, &mut fs_rng);
 
         let (ps, pm2) = AHPForSpartan::prover_second_round(ps, vm)?;
         fs_rng.feed_randomness(&pm2)?;
