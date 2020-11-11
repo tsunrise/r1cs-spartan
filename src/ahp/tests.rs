@@ -1,16 +1,14 @@
 use rand::RngCore;
 use crate::error::SResult;
-use crate::test_utils::generate_circuit_with_random_input;
+use crate::test_utils::{generate_circuit_with_random_input, TestCurveFr};
 use crate::ahp::AHPForSpartan;
 use ark_ff::test_rng;
-
-type TestField = ark_test_curves::bls12_381::Fr;
 
 fn test_circuit<R: RngCore>(log_n: usize, log_v: usize, rng: &mut R) -> SResult<()> {
     let num_public = 1 << log_v;
     let num_private = (1 << log_n) - num_public;
     let (r1cs,
-        v, w) = generate_circuit_with_random_input::<TestField, _>(
+        v, w) = generate_circuit_with_random_input::<TestCurveFr, _>(
         num_public, num_private, true, 1, rng);
 
     let matrices = r1cs.to_matrices().unwrap();

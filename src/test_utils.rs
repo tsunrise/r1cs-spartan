@@ -6,11 +6,14 @@ use hashbrown::HashSet;
 use rand::RngCore;
 
 use crate::data_structures::constraints::TestSynthesizer;
+use ark_ec::PairingEngine;
+use ark_bls12_381::Bls12_381;
 
 /// scalar field used for tests
-pub type F = ark_test_curves::bls12_381::Fr;
+pub type TestCurve = Bls12_381;
+pub type TestCurveFr = <TestCurve as PairingEngine>::Fr;
 
-pub fn random_matrix<R: RngCore>(log_size: usize, num_non_zero: usize, rng: &mut R) -> Matrix<F> {
+pub fn random_matrix<R: RngCore>(log_size: usize, num_non_zero: usize, rng: &mut R) -> Matrix<TestCurveFr> {
     let bound = 1 << log_size;
     let mut mat: Vec<_> = (0..bound)
         .map(|_| Vec::new())
@@ -24,7 +27,7 @@ pub fn random_matrix<R: RngCore>(log_size: usize, num_non_zero: usize, rng: &mut
             y = (rng.next_u64() & (bound - 1)) as usize;
         }
         added.insert((x, y));
-        mat[x].push((F::rand(rng), y));
+        mat[x].push((TestCurveFr::rand(rng), y));
     }
     mat
 }

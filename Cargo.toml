@@ -18,7 +18,7 @@ hashbrown = {version = "0.9.1"}
 rand = {version =  "0.7.3", default-features = false}
 
 [dev-dependencies]
-ark-test-curves = { git = "https://github.com/arkworks-rs/algebra", default-features = false, features=["bls12_381_scalar_field", "bls12_381_curve"]}
+ark-bls12-381 = { git = "https://github.com/arkworks-rs/curves", default-features = false, features = [ "curve" ] }
 bench-utils = {git = "https://github.com/arkworks-rs/utils", features=["print-trace"]}
 
 [features]

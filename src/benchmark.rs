@@ -1,13 +1,12 @@
-use rand::RngCore;
 use ark_ff::{Field, test_rng};
 use ark_relations::r1cs::{ConstraintMatrices};
 use ark_serialize::{CanonicalSerialize, CanonicalDeserialize};
 use crate::Spartan;
 
-use crate::test_utils::generate_circuit_with_random_input;
+use crate::test_utils::{generate_circuit_with_random_input, TestCurveFr};
 use crate::data_structures::proof::Proof;
 
-fn test_circuit<R: RngCore, F: Field>(matrices: ConstraintMatrices<F>,v: Vec<F>,w: Vec<F>) -> Result<(),crate::Error> {
+fn test_circuit<F: Field>(matrices: ConstraintMatrices<F>,v: Vec<F>,w: Vec<F>) -> Result<(),crate::Error> {
         println!("|v| = {}, |w| = {}, #non-zero-entries = {}",
                  matrices.num_instance_variables,
                  matrices.num_witness_variables,
@@ -41,7 +40,7 @@ fn test_circuit<R: RngCore, F: Field>(matrices: ConstraintMatrices<F>,v: Vec<F>,
 #[test]
 #[ignore]
 fn benchmark() {
-    type F = ark_test_curves::bls12_381::Fr;
+    type F = TestCurveFr;
     let mut rng = test_rng();
 
     println!("Spartan Benchmark\nNote: As commitment scheme has not been used, \

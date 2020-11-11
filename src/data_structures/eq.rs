@@ -29,7 +29,7 @@ mod test{
 
     #[test]
     fn functionality_test(){
-        type F = crate::test_utils::F;
+        type F = crate::test_utils::TestCurveFr;
         let t = 0b101101001;
         let t_vec: Vec<F> = bits_to_field_elements(t, 9);
         let eq_ext = eq_extension(&t_vec).unwrap();

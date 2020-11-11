@@ -113,7 +113,7 @@ impl<F: Field> MatrixExtension<F> {
 #[cfg(test)]
 mod test{
     use ark_ff::{test_rng, Zero, One};
-    use crate::test_utils::{random_matrix, F};
+    use crate::test_utils::{random_matrix, TestCurveFr};
     use crate::data_structures::r1cs_reader::MatrixExtension;
     use linear_sumcheck::data_structures::ml_extension::MLExtension;
 
@@ -124,7 +124,7 @@ mod test{
         let matrix= random_matrix(6, 1 << 9, &mut rng);
         let expected_evaluations = &matrix[0b110010];
         let mat_ext = MatrixExtension::new(matrix.clone(), 1<<6).unwrap();
-        let eval_point = vec![F::zero(), F::one(), F::zero(), F::zero(), F::one(), F::one()];
+        let eval_point = vec![TestCurveFr::zero(), TestCurveFr::one(), TestCurveFr::zero(), TestCurveFr::zero(), TestCurveFr::one(), TestCurveFr::one()];
         let actual_evaluations = mat_ext.eval_on_x(&eval_point).unwrap();
         for (val, idx) in expected_evaluations {
             assert_eq!(actual_evaluations.eval_binary(*idx).unwrap(), *val);
