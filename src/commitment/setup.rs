@@ -2,12 +2,13 @@ use ark_ec::{PairingEngine, ProjectiveCurve};
 use crate::commitment::MLPolyCommit;
 use rand::RngCore;
 use crate::commitment::data_structures::{PublicParameter, EvaluationHyperCubeOnG1, EvaluationHyperCubeOnG2};
-use ark_ff::UniformRand;
+use ark_ff::{UniformRand, PrimeField};
 use crate::data_structures::eq::eq_extension;
 use crate::error::SResult;
 use linear_sumcheck::data_structures::ml_extension::MLExtension;
 use ark_std::collections::LinkedList;
 use ark_std::iter::FromIterator;
+use ark_ec::msm::FixedBaseMSM;
 
 impl<E: PairingEngine> MLPolyCommit<E> {
     pub fn keygen<R: RngCore>(nv: usize, rng: &mut R) -> SResult<PublicParameter<E>> {
@@ -18,13 +19,20 @@ impl<E: PairingEngine> MLPolyCommit<E> {
         let t: Vec<_> = (0..nv).map(|_|E::Fr::rand(rng)).collect();
         let mut eq = LinkedList::from_iter(eq_extension(&t)?);
         let mut base = eq.pop_front().unwrap().into_table()?;
+        let scalar_bits = E::Fr::size_in_bits();
         for k in 1 .. (nv+1) {
-            let pp_k_g: EvaluationHyperCubeOnG1<E> = (0..(1<<k))
-                .map(|x|g.mul(base[x]))
+            let window_size = FixedBaseMSM::get_mul_window_size(1<<k);
+            let g_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, g);
+            let h_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, h);
+            let pp_k_powers: Vec<E::Fr> = (0..(1<<k))
+                .map(|x|base[x])
                 .collect();
-            let pp_k_h: EvaluationHyperCubeOnG2<E> = (0..(1<<k))
-                .map(|x|h.mul(base[x]))
-                .collect();
+            let pp_k_g= FixedBaseMSM::multi_scalar_mul(
+                scalar_bits, window_size, &g_table, &pp_k_powers
+            );
+            let pp_k_h= FixedBaseMSM::multi_scalar_mul(
+                scalar_bits, window_size, &h_table, &pp_k_powers
+            );
             powers_of_g.push(pp_k_g);
             powers_of_h.push(pp_k_h);
             if k != nv{
@@ -86,8 +94,8 @@ mod tests{
         let mut rng1 = test_rng();
         let mut rng2 = test_rng();
         type E = TestCurve;
-        let pp_actual = MLPolyCommit::<E>::keygen(6, &mut rng1).unwrap();
-        let pp_expected = dummy_keygen::<_, E>(6, &mut rng2).unwrap();
+        let pp_actual = MLPolyCommit::<E>::keygen(7, &mut rng1).unwrap();
+        let pp_expected = dummy_keygen::<_, E>(7, &mut rng2).unwrap();
 
         assert!(pp_actual.g == pp_expected.g);
         assert!(pp_actual.h == pp_expected.h);
