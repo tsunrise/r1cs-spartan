@@ -74,11 +74,11 @@ impl<E: PairingEngine> Spartan<E> {
 
         let (ps, pm2) = AHPForSpartan::prover_second_round(ps, vm)?;
         fs_rng.feed_randomness(&pm2)?;
-        let vm = AHPForSpartan::<E>::simulate_verify_second_round(&ps.pk, &mut fs_rng);
+        let vm = AHPForSpartan::<E>::sample_second_round(ps.pk.log_n, &mut fs_rng);
 
         let (mut ps, pm3) = AHPForSpartan::prover_third_round(ps, vm)?;
         fs_rng.feed_randomness(&pm3)?;
-        let mut vm = AHPForSpartan::<E>::simulate_verify_third_round();
+        let mut vm = AHPForSpartan::<E>::sample_third_round();
 
         let mut sumcheck1_msgs = Vec::with_capacity(log_n);
         for _ in 0..(log_n - 1) {
@@ -86,21 +86,21 @@ impl<E: PairingEngine> Spartan<E> {
             ps = ps_new;
             fs_rng.feed_randomness(&pm)?;
             sumcheck1_msgs.push(pm);
-            vm = AHPForSpartan::<E>::simulate_verify_first_sumcheck_ongoing_round(&mut fs_rng);
+            vm = AHPForSpartan::<E>::sample_verify_first_sumcheck_ongoing_round(&mut fs_rng);
         }
 
         let (ps, pm) = AHPForSpartan::prove_first_sumcheck_round(ps, vm)?;
         fs_rng.feed_randomness(&pm)?;
         sumcheck1_msgs.push(pm);
-        let vm = AHPForSpartan::<E>::simulate_verify_first_sumcheck_final_round(&mut fs_rng);
+        let vm = AHPForSpartan::<E>::sample_verify_first_sumcheck_final_round(&mut fs_rng);
 
         let (ps, pm4) = AHPForSpartan::prove_fourth_round(ps, vm)?;
         fs_rng.feed_randomness(&pm4)?;
-        let vm = AHPForSpartan::<E>::simulate_verify_fourth_round(&mut fs_rng);
+        let vm = AHPForSpartan::<E>::sample_verify_fourth_round(&mut fs_rng);
 
         let (mut ps, pm5) = AHPForSpartan::prove_fifth_round(ps, vm)?;
         fs_rng.feed_randomness(&pm5)?;
-        let mut vm = AHPForSpartan::<E>::simulate_verify_fifth_round();
+        let mut vm = AHPForSpartan::<E>::sample_verify_fifth_round();
 
         let mut sumcheck2_msgs = Vec::with_capacity(log_n);
         for _ in 0..(log_n - 1) {
@@ -108,13 +108,13 @@ impl<E: PairingEngine> Spartan<E> {
             ps = ps_new;
             fs_rng.feed_randomness(&pm)?;
             sumcheck2_msgs.push(pm);
-            vm = AHPForSpartan::<E>::simulate_verify_second_sumcheck_ongoing_round(&mut fs_rng);
+            vm = AHPForSpartan::<E>::sample_verify_second_sumcheck_ongoing_round(&mut fs_rng);
         }
 
         let (ps, pm) = AHPForSpartan::prove_second_sumcheck_round(ps, vm)?;
         fs_rng.feed_randomness(&pm)?;
         sumcheck2_msgs.push(pm);
-        let vm = AHPForSpartan::<E>::simulate_verify_second_sumcheck_final_round(&mut fs_rng);
+        let vm = AHPForSpartan::<E>::sample_verify_second_sumcheck_final_round(&mut fs_rng);
 
         let pm6 = AHPForSpartan::prove_sixth_round(ps, vm)?;
 

@@ -12,7 +12,7 @@ ark-ec = { git = "https://github.com/arkworks-rs/algebra", default-features = fa
 ark-std = { git = "https://github.com/arkworks-rs/utils/", default-features = false }
 ark-relations = {git = "https://github.com/arkworks-rs/snark/", default-features = false}
 ark-serialize = {git = "https://github.com/arkworks-rs/algebra", default-features = false}
-linear-sumcheck = {git = "https://github.com/arkworks-rs/sumcheck",branch="ahp_ml", default-features = false}
+linear-sumcheck = {git = "https://github.com/arkworks-rs/sumcheck", default-features = false}
 
 hashbrown = {version = "0.9.1"}
 rand = {version =  "0.7.3", default-features = false}
