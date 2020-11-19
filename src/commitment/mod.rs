@@ -2,6 +2,10 @@ use ark_std::marker::PhantomData;
 
 pub mod data_structures;
 pub mod setup;
+pub mod commit;
+pub mod open;
+pub mod verify;
+
 use ark_ec::{PairingEngine, AffineCurve, ProjectiveCurve};
 use ark_ff::Field;
 

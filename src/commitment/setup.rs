@@ -1,7 +1,7 @@
 use ark_ec::{PairingEngine, ProjectiveCurve};
 use crate::commitment::MLPolyCommit;
 use rand::RngCore;
-use crate::commitment::data_structures::{PublicParameter, EvaluationHyperCubeOnG1, EvaluationHyperCubeOnG2};
+use crate::commitment::data_structures::{PublicParameter, EvaluationHyperCubeOnG1, EvaluationHyperCubeOnG2, VerifierParameter};
 use ark_ff::{UniformRand, PrimeField};
 use crate::data_structures::eq::eq_extension;
 use crate::error::SResult;
@@ -11,12 +11,12 @@ use ark_std::iter::FromIterator;
 use ark_ec::msm::FixedBaseMSM;
 
 impl<E: PairingEngine> MLPolyCommit<E> {
-    pub fn keygen<R: RngCore>(nv: usize, rng: &mut R) -> SResult<PublicParameter<E>> {
+    pub fn keygen<R: RngCore>(nv: usize, rng: &mut R) -> SResult<(PublicParameter<E>, VerifierParameter<E>, Vec<E::Fr>)> {
         let g: E::G1Projective = E::G1Projective::rand(rng);
         let h: E::G2Projective = E::G2Projective::rand(rng);
         let mut powers_of_g = Vec::new();
         let mut powers_of_h = Vec::new();
-        let t: Vec<_> = (0..nv).map(|_|E::Fr::rand(rng)).collect();
+        let mut t: Vec<_> = (0..nv).map(|_|E::Fr::rand(rng)).collect();
         let mut eq = LinkedList::from_iter(eq_extension(&t)?);
         let mut base = eq.pop_front().unwrap().into_table()?;
         let scalar_bits = E::Fr::size_in_bits();
@@ -43,12 +43,31 @@ impl<E: PairingEngine> MLPolyCommit<E> {
                 }).collect();
             }
         }
-        Ok(PublicParameter{
+        let pp = PublicParameter{
+            nv,
             g,
             h,
             powers_of_g,
             powers_of_h
-        })
+        };
+        t.reverse();
+        // calculate vp
+        let vp = {
+            let window_size = FixedBaseMSM::get_mul_window_size(nv);
+            let g_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, g);
+            let h_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, h);
+            let g_mask = FixedBaseMSM::multi_scalar_mul(scalar_bits, window_size, &g_table, &t);
+            let h_mask = FixedBaseMSM::multi_scalar_mul(scalar_bits, window_size, &h_table, &t);
+            VerifierParameter{
+                nv,
+                g,
+                h,
+                g_mask_random: g_mask,
+                h_mask_random: h_mask
+            }
+        };
+
+        Ok((pp, vp, t))
     }
 }
 
@@ -59,8 +78,6 @@ mod tests{
     use crate::error::SResult;
     use crate::commitment::data_structures::{PublicParameter, EvaluationHyperCubeOnG1, EvaluationHyperCubeOnG2};
     use ark_ff::{UniformRand, test_rng};
-    use ark_std::collections::LinkedList;
-    use ark_std::iter::FromIterator;
     use crate::data_structures::eq::eq_extension;
     use linear_sumcheck::data_structures::ml_extension::{MLExtension, ArithmeticCombination};
     use crate::commitment::MLPolyCommit;
@@ -82,6 +99,7 @@ mod tests{
             powers_of_h.push(pp_k_h);
         }
         Ok(PublicParameter{
+            nv,
             g,
             h,
             powers_of_g,
@@ -94,12 +112,15 @@ mod tests{
         let mut rng1 = test_rng();
         let mut rng2 = test_rng();
         type E = TestCurve;
-        let pp_actual = MLPolyCommit::<E>::keygen(7, &mut rng1).unwrap();
-        let pp_expected = dummy_keygen::<_, E>(7, &mut rng2).unwrap();
+        let (pp_actual, vp_actual, t) = MLPolyCommit::<E>::keygen(5, &mut rng1).unwrap();
+        let pp_expected = dummy_keygen::<_, E>(5, &mut rng2).unwrap();
 
         assert!(pp_actual.g == pp_expected.g);
         assert!(pp_actual.h == pp_expected.h);
         assert!(pp_actual.powers_of_h.eq(&pp_expected.powers_of_h));
         assert!(pp_actual.powers_of_g.eq(&pp_expected.powers_of_g));
+
+        assert!(vp_actual.g_mask_random == t.iter().map(|x|pp_actual.g.mul(*x)).collect::<Vec<_>>());
+        assert!(vp_actual.h_mask_random == t.iter().map(|x|pp_actual.h.mul(*x)).collect::<Vec<_>>());
     }
 }
