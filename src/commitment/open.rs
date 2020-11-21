@@ -31,9 +31,9 @@ impl<E: PairingEngine> MLPolyCommit<E> {
         r[nv] = polynomial.into_table()?;
 
         let mut proofs = Vec::new();
-        for k in (1..nv+1).rev() {
-            let variable_index = nv - k;
-            let point_at_k = point[variable_index];
+        for i in 0..nv {
+            let k = nv - i;
+            let point_at_k = point[i];
             q[k] = (0..(1 << (k - 1))).map(|_|E::Fr::zero()).collect();
             r[k-1] = (0..(1 << (k - 1))).map(|_|E::Fr::zero()).collect();
             for b in 0..(1<<(k-1)) {
@@ -43,10 +43,9 @@ impl<E: PairingEngine> MLPolyCommit<E> {
             let scalars: Vec<_> = (0..(1 << k)).map(|x|q[k][x >> 1].into_repr())
                 .collect();
 
-            let g_base: Vec<_> = pp.powers_of_g[k - 1].iter()
+            let g_base: Vec<_> = pp.powers_of_g[i].iter()
                 .map(|x|x.into_affine()).collect();
-            let h_base: Vec<_> = pp.powers_of_h[k - 1].iter()
-                .map(|x|x.into_affine()).collect();
+            let h_base: Vec<_> = E::G2Projective::batch_normalization_into_affine(&pp.powers_of_h[i]);
             let pi_g = VariableBaseMSM::multi_scalar_mul(&g_base, &scalars);
             let pi_h = VariableBaseMSM::multi_scalar_mul(&h_base, &scalars);
             proofs.push((pi_g, pi_h));

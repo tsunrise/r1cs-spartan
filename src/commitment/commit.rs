@@ -18,9 +18,9 @@ impl<E: PairingEngine> MLPolyCommit<E> {
         let nv = polynomial.num_variables()?;
         let scalars: Vec<_> = polynomial.into_table()?
             .into_iter().map(|x|x.into_repr()).collect();
-        let g_bases: Vec<_> = E::G1Projective::batch_normalization_into_affine(&pp.powers_of_g[nv - 1]);
+        let g_bases: Vec<_> = E::G1Projective::batch_normalization_into_affine(&pp.powers_of_g[0]);
         let g_product: E::G1Projective = VariableBaseMSM::multi_scalar_mul(&g_bases, scalars.as_slice());
-        let h_bases: Vec<_> = E::G2Projective::batch_normalization_into_affine(&pp.powers_of_h[nv - 1]);
+        let h_bases: Vec<_> = E::G2Projective::batch_normalization_into_affine(&pp.powers_of_h[0]);
         let h_product: E::G2Projective = VariableBaseMSM::multi_scalar_mul(&h_bases, scalars.as_slice());
         
         Ok(Commitment{nv, g_product, h_product})
@@ -59,8 +59,8 @@ mod test{
         let commit_expected = naive_commit(&pp, poly.clone(), &t).unwrap();
         let commit_actual = MLPolyCommit::commit(&pp, poly.clone()).unwrap();
 
-        assert!(commit_actual.g_product == commit_expected.g_product);
-        assert!(commit_actual.h_product == commit_expected.h_product);
+        assert_eq!(commit_actual.g_product, commit_expected.g_product);
+        assert_eq!(commit_actual.h_product, commit_expected.h_product);
 
     }
 }
