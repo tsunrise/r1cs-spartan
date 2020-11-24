@@ -10,7 +10,6 @@ use ark_ff::PrimeField;
 pub struct Commitment<E: PairingEngine>{
     pub nv: usize,
     pub g_product: E::G1Projective,
-    pub h_product: E::G2Projective,
 }
 
 impl<E: PairingEngine> MLPolyCommit<E> {
@@ -20,10 +19,8 @@ impl<E: PairingEngine> MLPolyCommit<E> {
             .into_iter().map(|x|x.into_repr()).collect();
         let g_bases: Vec<_> = E::G1Projective::batch_normalization_into_affine(&pp.powers_of_g[0]);
         let g_product: E::G1Projective = VariableBaseMSM::multi_scalar_mul(&g_bases, scalars.as_slice());
-        let h_bases: Vec<_> = E::G2Projective::batch_normalization_into_affine(&pp.powers_of_h[0]);
-        let h_product: E::G2Projective = VariableBaseMSM::multi_scalar_mul(&h_bases, scalars.as_slice());
         
-        Ok(Commitment{nv, g_product, h_product})
+        Ok(Commitment{nv, g_product})
     }
 }
 
@@ -45,8 +42,7 @@ mod test{
     fn naive_commit(pp: &PublicParameter<E>, polynomial: MLExtensionArray<Fr>, rand_t: &[Fr]) -> SResult<Commitment<E>> {
         let nv = polynomial.num_variables()?;
         let g_product = pp.g.mul(polynomial.eval_at(rand_t)?);
-        let h_product = pp.h.mul(polynomial.eval_at(rand_t)?);
-        Ok(Commitment{nv, g_product, h_product})
+        Ok(Commitment{nv, g_product})
     }
     #[test]
     fn commit_test(){
@@ -60,7 +56,6 @@ mod test{
         let commit_actual = MLPolyCommit::commit(&pp, poly.clone()).unwrap();
 
         assert_eq!(commit_actual.g_product, commit_expected.g_product);
-        assert_eq!(commit_actual.h_product, commit_expected.h_product);
 
     }
 }

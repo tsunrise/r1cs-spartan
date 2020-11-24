@@ -3,8 +3,9 @@ use crate::commitment::MLPolyCommit;
 use crate::commitment::commit::Commitment;
 use crate::commitment::data_structures::VerifierParameter;
 use crate::commitment::open::Proof;
-use ark_ff::One;
+use ark_ff::{One, PrimeField};
 use crate::error::SResult;
+use ark_ec::msm::FixedBaseMSM;
 
 
 impl<E: PairingEngine> MLPolyCommit<E> {
@@ -12,11 +13,25 @@ impl<E: PairingEngine> MLPolyCommit<E> {
     ->SResult<bool>{
         let left =
             E::pairing(commitment.g_product - &vp.g.mul(eval), vp.h);
-        let mut right = E::Fqk::one();
-        for i in 0 .. vp.nv {
-            right *= &E::pairing(vp.g_mask_random[i] - &vp.g.mul(point[i]), proof.proofs[i].1);
-        }
-        assert_eq!(left, right);
+        // let mut right = E::Fqk::one();
+        // for i in 0 .. vp.nv {
+        //     right *= &E::pairing(vp.g_mask_random[i] - &vp.g.mul(point[i]), proof.proofs[i]);
+        // }
+        let scalar_size = E::Fr::size_in_bits();
+        let window_size = FixedBaseMSM::get_mul_window_size(vp.nv);
+        let vp_g_table = FixedBaseMSM::get_window_table(scalar_size, window_size, vp.g);
+        let vp_g_mul: Vec<E::G1Projective> = FixedBaseMSM::multi_scalar_mul(scalar_size, window_size, &vp_g_table, point);
+        let pairing_lefts: Vec<_> = (0..vp.nv).map(|i|
+            vp.g_mask_random[i] - &vp_g_mul[i]).collect();
+        let pairing_lefts: Vec<E::G1Affine> = E::G1Projective::batch_normalization_into_affine(&pairing_lefts);
+        let pairing_lefts: Vec<E::G1Prepared> = pairing_lefts.into_iter().map(|x|E::G1Prepared::from(x)).collect();
+        let pairing_rights: Vec<E::G2Prepared> = E::G2Projective::batch_normalization_into_affine(&proof.proofs)
+            .into_iter()
+            .map(|x|E::G2Prepared::from(x)).collect();
+        let pairings: Vec<_> = pairing_lefts.into_iter()
+            .zip(pairing_rights.into_iter()).collect();
+        let right = E::product_of_pairings(pairings.iter());
+
         Ok(left == right)
     }
 }
@@ -30,13 +45,12 @@ mod sanity {
     use ark_ff::{UniformRand, Zero};
     use ark_ec::{PairingEngine, ProjectiveCurve};
     use linear_sumcheck::data_structures::ml_extension::MLExtension;
-    use ark_ec::group::Group;
 
     type E = TestCurve;
     type Fr = <TestCurve as PairingEngine>::Fr;
     #[test]
     fn sanity(){
-        let nv = 5;
+        let nv = 10;
         let mut rng1 = test_rng();
         let (pp, vp, s) = MLPolyCommit::<E>::keygen(nv, &mut rng1).unwrap();
         let poly =
@@ -50,7 +64,7 @@ mod sanity {
             let fx = poly.eval_at(&s).unwrap();
             let ft = poly.eval_at(&point).unwrap();
             let mut rhs = Fr::zero();
-            let g = pp.g;
+            let g = vp.g;
             let h = pp.h;
             let lhs_pair = E::pairing(com.g_product - g.mul(ft), h);
             let mut rhs_pair = <E as PairingEngine>::Fqk::one();
@@ -59,7 +73,7 @@ mod sanity {
                 let q_i: Vec<_> = (0..(1 << k)).map(|a|q[k][a >> 1]).collect();
                 let q_i = MLExtensionArray::from_vec(q_i).unwrap();
                 rhs += (s[i] - point[i]) * q_i.eval_at(&s[i..]).unwrap();
-                assert_eq!(h.mul(q_i.eval_at(&s[i..]).unwrap()), pf.proofs[i].1, "open error");
+                assert_eq!(h.mul(q_i.eval_at(&s[i..]).unwrap()), pf.proofs[i], "open error");
                 rhs_pair *= E::pairing(g.mul(s[i] - point[i]), h.mul(q_i.eval_at(&s[i..]).unwrap()));
             }
             assert!(fx - ft == rhs); // hmm, q seems correct

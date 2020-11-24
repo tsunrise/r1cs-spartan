@@ -5,9 +5,8 @@ use crate::commitment::data_structures::{PublicParameter, EvaluationHyperCubeOnG
 use ark_ff::{UniformRand, PrimeField, Field};
 use crate::data_structures::eq::eq_extension;
 use crate::error::{SResult, invalid_arg};
-use linear_sumcheck::data_structures::ml_extension::{ArithmeticCombination, MLExtension};
+use linear_sumcheck::data_structures::ml_extension::{MLExtension};
 use ark_ec::msm::FixedBaseMSM;
-use linear_sumcheck::data_structures::MLExtensionArray;
 use ark_std::collections::LinkedList;
 use ark_std::iter::FromIterator;
 
@@ -72,15 +71,12 @@ impl<E: PairingEngine> MLPolyCommit<E> {
         let vp = {
             let window_size = FixedBaseMSM::get_mul_window_size(nv);
             let g_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, g);
-            let h_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, h);
             let g_mask = FixedBaseMSM::multi_scalar_mul(scalar_bits, window_size, &g_table, &t);
-            let h_mask = FixedBaseMSM::multi_scalar_mul(scalar_bits, window_size, &h_table, &t);
             VerifierParameter{
                 nv,
                 g,
                 h,
                 g_mask_random: g_mask,
-                h_mask_random: h_mask
             }
         };
 
@@ -132,12 +128,9 @@ mod tests{
         let (pp_actual, vp_actual, t) = MLPolyCommit::<E>::keygen(5, &mut rng1).unwrap();
         let pp_expected = dummy_keygen::<_, E>(5, &mut rng2).unwrap();
 
-        assert!(pp_actual.g == pp_expected.g);
         assert!(pp_actual.h == pp_expected.h);
         assert!(pp_actual.powers_of_h.eq(&pp_expected.powers_of_h));
-        assert!(pp_actual.powers_of_g.eq(&pp_expected.powers_of_g));
 
-        assert!(vp_actual.g_mask_random == t.iter().map(|x|pp_actual.g.mul(*x)).collect::<Vec<_>>());
-        assert!(vp_actual.h_mask_random == t.iter().map(|x|pp_actual.h.mul(*x)).collect::<Vec<_>>());
+        assert!(vp_actual.g_mask_random == t.iter().map(|x|vp_actual.g.mul(*x)).collect::<Vec<_>>());
     }
 }

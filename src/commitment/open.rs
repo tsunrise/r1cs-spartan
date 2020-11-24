@@ -8,10 +8,8 @@ use ark_ff::{One, Zero, PrimeField};
 use ark_ec::msm::VariableBaseMSM;
 
 pub struct Proof<E: PairingEngine> {
-    pub g: E::G1Projective,
     pub h: E::G2Projective,
-
-    pub proofs: Vec<(E::G1Projective, E::G2Projective)>
+    pub proofs: Vec<E::G2Projective>
 }
 
 impl<E: PairingEngine> MLPolyCommit<E> {
@@ -43,16 +41,12 @@ impl<E: PairingEngine> MLPolyCommit<E> {
             let scalars: Vec<_> = (0..(1 << k)).map(|x|q[k][x >> 1].into_repr())
                 .collect();
 
-            let g_base: Vec<_> = pp.powers_of_g[i].iter()
-                .map(|x|x.into_affine()).collect();
             let h_base: Vec<_> = E::G2Projective::batch_normalization_into_affine(&pp.powers_of_h[i]);
-            let pi_g = VariableBaseMSM::multi_scalar_mul(&g_base, &scalars);
             let pi_h = VariableBaseMSM::multi_scalar_mul(&h_base, &scalars);
-            proofs.push((pi_g, pi_h));
+            proofs.push(pi_h);
         }
 
         Ok((eval_result, Proof{
-            g: pp.g,
             h: pp.h,
             proofs
         }, q))

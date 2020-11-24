@@ -18,5 +18,4 @@ pub struct VerifierParameter<E: PairingEngine> {
     pub h: E::G2Projective,
     /// g^t1, g^t2, ...
     pub g_mask_random: Vec<E::G1Projective>,
-    pub h_mask_random: Vec<E::G2Projective>
 }
