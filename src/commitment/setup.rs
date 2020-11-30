@@ -41,28 +41,41 @@ impl<E: PairingEngine> MLPolyCommit<E> {
             if i != 0 {
                 let mul = eq.pop_back().unwrap().into_table()?;
                 base = base.into_iter().zip(mul.into_iter())
-                    .map(|(a,b)| a * &b).collect(); // todo: performance check using timer
+                    .map(|(a,b)| a * &b).collect();
             }
         }
         end_timer!(eq_ext_timer);
         let variable_mul_timer = start_timer!(||"variable multiplication");
+
+        let mut pp_powers = Vec::new();
+        let mut total_scalars = 0;
         for i in 0 .. nv {
-            let window_size = FixedBaseMSM::get_mul_window_size(1<<(nv - i));
-            let g_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, g); // todo: take it outside (use maximum size)
-            let h_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, h);
             let eq = eq_arr.pop_front().unwrap();
-            let pp_k_powers: Vec<E::Fr> = (0..(1<<(nv - i))) // todo: maintain a big pp_k_powers outside and partition after
-                .map(|x|eq[x])
-                .collect();
-            let pp_k_g= FixedBaseMSM::multi_scalar_mul(
-                scalar_bits, window_size, &g_table, &pp_k_powers
-            );
-            let pp_k_h= FixedBaseMSM::multi_scalar_mul(
-                scalar_bits, window_size, &h_table, &pp_k_powers
-            );
+            let pp_k_powers = (0..(1<<(nv - i)))
+                .map(|x|eq[x]);
+            pp_powers.extend(pp_k_powers);
+            total_scalars += 1 << (nv - i);
+        }
+        let window_size = FixedBaseMSM::get_mul_window_size(total_scalars);
+        let g_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, g);
+        let h_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, h);
+
+        let pp_g = FixedBaseMSM::multi_scalar_mul(
+            scalar_bits, window_size, &g_table, &pp_powers
+        );
+        let pp_h= FixedBaseMSM::multi_scalar_mul(
+            scalar_bits, window_size, &h_table, &pp_powers
+        );
+        let mut start = 0;
+        for i in 0..nv {
+            let size = 1 << (nv - i);
+            let pp_k_g = (&pp_g[start..(start + size)]).to_vec();
+            let pp_k_h = (&pp_h[start..(start + size)]).to_vec();
             powers_of_g.push(pp_k_g);
             powers_of_h.push(pp_k_h);
+            start += size;
         }
+
         end_timer!(variable_mul_timer);
         let pp = PublicParameter{
             nv,
