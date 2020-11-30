@@ -35,20 +35,23 @@ impl<E: PairingEngine> MLPolyCommit<E> {
         let mut eq = LinkedList::from_iter(eq_extension(&t)?.into_iter());
         let mut eq_arr = LinkedList::new();
         let mut base = eq.pop_back().unwrap().into_table()?;
+        let eq_ext_timer = start_timer!(||"eq_extension");
         for i in (0 .. nv).rev() {
             eq_arr.push_front(remove_dummy_variable(&base, i)?);
             if i != 0 {
                 let mul = eq.pop_back().unwrap().into_table()?;
                 base = base.into_iter().zip(mul.into_iter())
-                    .map(|(a,b)| a * &b).collect();
+                    .map(|(a,b)| a * &b).collect(); // todo: performance check using timer
             }
         }
+        end_timer!(eq_ext_timer);
+        let variable_mul_timer = start_timer!(||"variable multiplication");
         for i in 0 .. nv {
             let window_size = FixedBaseMSM::get_mul_window_size(1<<(nv - i));
-            let g_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, g);
+            let g_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, g); // todo: take it outside (use maximum size)
             let h_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, h);
             let eq = eq_arr.pop_front().unwrap();
-            let pp_k_powers: Vec<E::Fr> = (0..(1<<(nv - i)))
+            let pp_k_powers: Vec<E::Fr> = (0..(1<<(nv - i))) // todo: maintain a big pp_k_powers outside and partition after
                 .map(|x|eq[x])
                 .collect();
             let pp_k_g= FixedBaseMSM::multi_scalar_mul(
@@ -60,6 +63,7 @@ impl<E: PairingEngine> MLPolyCommit<E> {
             powers_of_g.push(pp_k_g);
             powers_of_h.push(pp_k_h);
         }
+        end_timer!(variable_mul_timer);
         let pp = PublicParameter{
             nv,
             g,
@@ -68,6 +72,7 @@ impl<E: PairingEngine> MLPolyCommit<E> {
             powers_of_h
         };
         // calculate vp
+        let vp_generation_timer = start_timer!(||"VP generation");
         let vp = {
             let window_size = FixedBaseMSM::get_mul_window_size(nv);
             let g_table = FixedBaseMSM::get_window_table(scalar_bits, window_size, g);
@@ -79,6 +84,7 @@ impl<E: PairingEngine> MLPolyCommit<E> {
                 g_mask_random: g_mask,
             }
         };
+        end_timer!(vp_generation_timer);
 
         Ok((pp, vp, t))
     }
@@ -132,5 +138,17 @@ mod tests{
         assert!(pp_actual.powers_of_h.eq(&pp_expected.powers_of_h));
 
         assert!(vp_actual.g_mask_random == t.iter().map(|x|vp_actual.g.mul(*x)).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn setup_bench() {
+        let mut rng = test_rng();
+        type E = TestCurve;
+        let nv_range = 8..13;
+        for nv in nv_range{
+            let timer = start_timer!(|| format!("setup for {} variables (data size = {})", nv, 1 << nv));
+            MLPolyCommit::<E>::keygen(nv, &mut rng).expect("unable to setup");
+            end_timer!(timer);
+        }
     }
 }

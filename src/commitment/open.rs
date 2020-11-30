@@ -38,11 +38,11 @@ impl<E: PairingEngine> MLPolyCommit<E> {
                 q[k][b] = r[k][(b << 1) + 1] - &r[k][b << 1];
                 r[k-1][b] = r[k][b << 1] * &(E::Fr::one() - &point_at_k) + &(r[k][(b << 1) + 1] * &point_at_k);
             }
-            let scalars: Vec<_> = (0..(1 << k)).map(|x|q[k][x >> 1].into_repr())
+            let scalars: Vec<_> = (0..(1 << k)).map(|x|q[k][x >> 1].into_repr())  // fine
                 .collect();
 
-            let h_base: Vec<_> = E::G2Projective::batch_normalization_into_affine(&pp.powers_of_h[i]);
-            let pi_h = VariableBaseMSM::multi_scalar_mul(&h_base, &scalars);
+            let h_base: Vec<_> = E::G2Projective::batch_normalization_into_affine(&pp.powers_of_h[i]); // TODO: do batch normaiization at setup
+            let pi_h = VariableBaseMSM::multi_scalar_mul(&h_base, &scalars); // no need to move outside and partition
             proofs.push(pi_h);
         }
 

@@ -20,7 +20,7 @@ impl<E: PairingEngine> MLPolyCommit<E> {
         let scalar_size = E::Fr::size_in_bits();
         let window_size = FixedBaseMSM::get_mul_window_size(vp.nv);
         let vp_g_table = FixedBaseMSM::get_window_table(scalar_size, window_size, vp.g);
-        let vp_g_mul: Vec<E::G1Projective> = FixedBaseMSM::multi_scalar_mul(scalar_size, window_size, &vp_g_table, point);
+        let vp_g_mul: Vec<E::G1Projective> = FixedBaseMSM::multi_scalar_mul(scalar_size, window_size, &vp_g_table, point); // may have overhead
         let pairing_lefts: Vec<_> = (0..vp.nv).map(|i|
             vp.g_mask_random[i] - &vp_g_mul[i]).collect();
         let pairing_lefts: Vec<E::G1Affine> = E::G1Projective::batch_normalization_into_affine(&pairing_lefts);

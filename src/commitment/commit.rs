@@ -17,7 +17,7 @@ impl<E: PairingEngine> MLPolyCommit<E> {
         let nv = polynomial.num_variables()?;
         let scalars: Vec<_> = polynomial.into_table()?
             .into_iter().map(|x|x.into_repr()).collect();
-        let g_bases: Vec<_> = E::G1Projective::batch_normalization_into_affine(&pp.powers_of_g[0]);
+        let g_bases: Vec<_> = E::G1Projective::batch_normalization_into_affine(&pp.powers_of_g[0]);  // do it in setup
         let g_product: E::G1Projective = VariableBaseMSM::multi_scalar_mul(&g_bases, scalars.as_slice());
         
         Ok(Commitment{nv, g_product})

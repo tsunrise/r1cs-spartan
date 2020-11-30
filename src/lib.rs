@@ -2,7 +2,6 @@
 #[allow(unused_imports)]
 extern crate ark_relations;
 
-#[cfg(test)]
 #[macro_use]
 extern crate bench_utils;
 
