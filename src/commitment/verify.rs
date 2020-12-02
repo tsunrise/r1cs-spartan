@@ -1,4 +1,4 @@
-use ark_ec::{PairingEngine, ProjectiveCurve};
+use ark_ec::{PairingEngine, ProjectiveCurve, AffineCurve};
 use crate::commitment::MLPolyCommit;
 use crate::commitment::commit::Commitment;
 use crate::commitment::data_structures::VerifierParameter;
@@ -12,26 +12,35 @@ impl<E: PairingEngine> MLPolyCommit<E> {
     pub fn verify(vp: VerifierParameter<E>,commitment: Commitment<E>, point: &[E::Fr], eval: E::Fr, proof: Proof<E>)
     ->SResult<bool>{
         let left =
-            E::pairing(commitment.g_product - &vp.g.mul(eval), vp.h);
+            E::pairing(commitment.g_product.into_projective() - &vp.g.mul(eval), vp.h);
         // let mut right = E::Fqk::one();
         // for i in 0 .. vp.nv {
         //     right *= &E::pairing(vp.g_mask_random[i] - &vp.g.mul(point[i]), proof.proofs[i]);
         // }
         let scalar_size = E::Fr::size_in_bits();
         let window_size = FixedBaseMSM::get_mul_window_size(vp.nv);
-        let vp_g_table = FixedBaseMSM::get_window_table(scalar_size, window_size, vp.g);
+        let timer = start_timer!(||"MSM");
+        let vp_g_table = FixedBaseMSM::get_window_table(scalar_size, window_size, vp.g.into_projective());
         let vp_g_mul: Vec<E::G1Projective> = FixedBaseMSM::multi_scalar_mul(scalar_size, window_size, &vp_g_table, point); // may have overhead
+        end_timer!(timer);
+        let timer = start_timer!(||"Pairing");
+        let timer2 = start_timer!(||"Calculating Left");
         let pairing_lefts: Vec<_> = (0..vp.nv).map(|i|
-            vp.g_mask_random[i] - &vp_g_mul[i]).collect();
+            vp.g_mask_random[i].into_projective() - &vp_g_mul[i]).collect();
         let pairing_lefts: Vec<E::G1Affine> = E::G1Projective::batch_normalization_into_affine(&pairing_lefts);
         let pairing_lefts: Vec<E::G1Prepared> = pairing_lefts.into_iter().map(|x|E::G1Prepared::from(x)).collect();
-        let pairing_rights: Vec<E::G2Prepared> = E::G2Projective::batch_normalization_into_affine(&proof.proofs)
+        end_timer!(timer2);
+        let timer2 = start_timer!(||"Calculating right");
+        let pairing_rights: Vec<E::G2Prepared> = proof.proofs
             .into_iter()
             .map(|x|E::G2Prepared::from(x)).collect();
+        end_timer!(timer2);
+        let timer2 = start_timer!(||"calculating product of pairing");
         let pairings: Vec<_> = pairing_lefts.into_iter()
             .zip(pairing_rights.into_iter()).collect();
         let right = E::product_of_pairings(pairings.iter());
-
+        end_timer!(timer2);
+        end_timer!(timer);
         Ok(left == right)
     }
 }
@@ -43,7 +52,7 @@ mod sanity {
     use crate::test_utils::TestCurve;
     use linear_sumcheck::data_structures::MLExtensionArray;
     use ark_ff::{UniformRand, Zero};
-    use ark_ec::{PairingEngine, ProjectiveCurve};
+    use ark_ec::{PairingEngine, ProjectiveCurve, AffineCurve};
     use linear_sumcheck::data_structures::ml_extension::MLExtension;
 
     type E = TestCurve;
@@ -66,7 +75,7 @@ mod sanity {
             let mut rhs = Fr::zero();
             let g = vp.g;
             let h = pp.h;
-            let lhs_pair = E::pairing(com.g_product - g.mul(ft), h);
+            let lhs_pair = E::pairing(com.g_product.into_projective() - &g.mul(ft), h);
             let mut rhs_pair = <E as PairingEngine>::Fqk::one();
             for i in 0..nv {
                 let k = nv - i;

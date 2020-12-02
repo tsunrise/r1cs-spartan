@@ -8,8 +8,8 @@ use ark_ff::{One, Zero, PrimeField};
 use ark_ec::msm::VariableBaseMSM;
 
 pub struct Proof<E: PairingEngine> {
-    pub h: E::G2Projective,
-    pub proofs: Vec<E::G2Projective>
+    pub h: E::G2Affine,
+    pub proofs: Vec<E::G2Affine>
 }
 
 impl<E: PairingEngine> MLPolyCommit<E> {
@@ -17,7 +17,9 @@ impl<E: PairingEngine> MLPolyCommit<E> {
     pub fn open(pp: &PublicParameter<E>,
                 polynomial: MLExtensionArray<E::Fr>,
                 point: &[E::Fr]) -> SResult<(E::Fr, Proof<E>, Vec<Vec<E::Fr>>)> {
+        let timer = start_timer!(||"Polynomial evaluation");
         let eval_result = polynomial.eval_at(point)?;
+        end_timer!(timer);
         let nv = polynomial.num_variables()?;
         let mut r: Vec<Vec<E::Fr>> = (0..nv+1)
             .map(|_|Vec::new())
@@ -29,6 +31,7 @@ impl<E: PairingEngine> MLPolyCommit<E> {
         r[nv] = polynomial.into_table()?;
 
         let mut proofs = Vec::new();
+        let timer = start_timer!(||"quotient calculation");
         for i in 0..nv {
             let k = nv - i;
             let point_at_k = point[i];
@@ -41,10 +44,10 @@ impl<E: PairingEngine> MLPolyCommit<E> {
             let scalars: Vec<_> = (0..(1 << k)).map(|x|q[k][x >> 1].into_repr())  // fine
                 .collect();
 
-            let h_base: Vec<_> = E::G2Projective::batch_normalization_into_affine(&pp.powers_of_h[i]); // TODO: do batch normaiization at setup
-            let pi_h = VariableBaseMSM::multi_scalar_mul(&h_base, &scalars); // no need to move outside and partition
+            let pi_h = VariableBaseMSM::multi_scalar_mul(&pp.powers_of_h[i], &scalars).into_affine(); // no need to move outside and partition
             proofs.push(pi_h);
         }
+        end_timer!(timer);
 
         Ok((eval_result, Proof{
             h: pp.h,
