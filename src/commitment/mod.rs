@@ -6,7 +6,7 @@ pub mod commit;
 pub mod open;
 pub mod verify;
 
-use ark_ec::{PairingEngine, ProjectiveCurve};
+use ark_ec::PairingEngine;
 
 pub struct MLPolyCommit<E: PairingEngine> {
     #[doc(hidden)]
@@ -25,7 +25,7 @@ mod commit_bench{
     use ark_std::collections::LinkedList;
     use ark_std::iter::FromIterator;
     use linear_sumcheck::data_structures::MLExtensionArray;
-    use ark_ec::{PairingEngine, ProjectiveCurve, AffineCurve};
+    use ark_ec::{PairingEngine};
     use ark_ff::UniformRand;
     const NV_RANGE_LOW: usize = 8;
     const NV_RANGE_HIGH: usize = 12;

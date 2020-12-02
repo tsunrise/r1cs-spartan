@@ -1,6 +1,8 @@
 use ark_ec::PairingEngine;
 use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, Read, Write, SerializationError};
+#[allow(type_alias_bounds)]
 pub type EvaluationHyperCubeOnG1<E: PairingEngine> = Vec<E::G1Affine>;
+#[allow(type_alias_bounds)]
 pub type EvaluationHyperCubeOnG2<E: PairingEngine> = Vec<E::G2Affine>;
 
 

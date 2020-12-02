@@ -39,8 +39,7 @@ mod test{
     use linear_sumcheck::data_structures::ml_extension::MLExtension;
     use ark_ff::{test_rng, UniformRand};
     use crate::commitment::MLPolyCommit;
-    use ark_bls12_381::G1Projective;
-    use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, Read};
+
 
     type E = TestCurve;
     type Fr = <E as PairingEngine>::Fr;

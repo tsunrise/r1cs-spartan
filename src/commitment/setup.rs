@@ -1,7 +1,7 @@
 use ark_ec::{PairingEngine, ProjectiveCurve, AffineCurve};
 use crate::commitment::MLPolyCommit;
 use rand::RngCore;
-use crate::commitment::data_structures::{PublicParameter, EvaluationHyperCubeOnG2, VerifierParameter};
+use crate::commitment::data_structures::{PublicParameter, VerifierParameter};
 use ark_ff::{UniformRand, PrimeField, Field};
 use crate::data_structures::eq::eq_extension;
 use crate::error::{SResult, invalid_arg};
@@ -113,7 +113,7 @@ mod tests{
     use crate::commitment::data_structures::{PublicParameter, EvaluationHyperCubeOnG1, EvaluationHyperCubeOnG2};
     use ark_ff::{UniformRand, test_rng};
     use crate::data_structures::eq::eq_extension;
-    use linear_sumcheck::data_structures::ml_extension::{MLExtension, ArithmeticCombination};
+    use linear_sumcheck::data_structures::ml_extension::ArithmeticCombination;
     use crate::commitment::MLPolyCommit;
     use crate::test_utils::TestCurve;
 

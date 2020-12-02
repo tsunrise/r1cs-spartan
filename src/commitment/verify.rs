@@ -3,7 +3,7 @@ use crate::commitment::MLPolyCommit;
 use crate::commitment::commit::Commitment;
 use crate::commitment::data_structures::VerifierParameter;
 use crate::commitment::open::Proof;
-use ark_ff::{One, PrimeField};
+use ark_ff::PrimeField;
 use crate::error::SResult;
 use ark_ec::msm::FixedBaseMSM;
 
@@ -52,7 +52,7 @@ mod sanity {
     use crate::test_utils::TestCurve;
     use linear_sumcheck::data_structures::MLExtensionArray;
     use ark_ff::{UniformRand, Zero};
-    use ark_ec::{PairingEngine, ProjectiveCurve, AffineCurve};
+    use ark_ec::{PairingEngine, AffineCurve};
     use linear_sumcheck::data_structures::ml_extension::MLExtension;
 
     type E = TestCurve;
