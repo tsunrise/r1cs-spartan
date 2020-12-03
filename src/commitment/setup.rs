@@ -153,7 +153,5 @@ mod tests{
 
         assert!(pp_actual.h == pp_expected.h.into_projective());
         assert!(pp_actual.powers_of_h.eq(&pp_expected.powers_of_h));
-
-        assert!(vp_actual.g_mask_random == t.iter().map(|x|vp_actual.g.mul(*x)).collect::<Vec<_>>());
     }
 }

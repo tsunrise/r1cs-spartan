@@ -17,7 +17,11 @@ use crate::data_structures::eq::eq_extension;
 use crate::error::{invalid_arg, SResult};
 use ark_ec::PairingEngine;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Read, SerializationError, Write};
-
+use crate::commitment::commit::Commitment;
+use crate::ahp::setup::PublicParameter;
+use crate::commitment::MLPolyCommit;
+use crate::commitment::open::Proof;
+use ark_ff::Zero;
 pub struct ProverFirstState<E: PairingEngine> {
     pub v: Vec<E::Fr>,
     pub w: Vec<E::Fr>,
@@ -28,6 +32,7 @@ pub struct ProverSecondState<E: PairingEngine> {
     pub v: Vec<E::Fr>,
     pub w: Vec<E::Fr>,
     pub pk: IndexPK<E::Fr>,
+    z: MLExtensionArray<E::Fr>
 }
 
 /// state after sending commitment and z_rv_0
@@ -59,14 +64,14 @@ pub struct ProverSecondSumcheckState<E: PairingEngine> {
 
 /// first message is the commitment
 #[derive(CanonicalSerialize, CanonicalDeserialize)]
-pub struct ProverFirstMessage {
-    pub commitment: Vec<u8>, // todo: replace this as a commitment
+pub struct ProverFirstMessage<E: PairingEngine> {
+    pub commitment: Commitment<E>
 }
 
 #[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct ProverSecondMessage<E: PairingEngine> {
     pub z_rv_0: E::Fr,
-    pub proof_for_z_rv_0: (), // todo: replace this as a proof using commitment
+    pub proof_for_z_rv_0: Proof<E>
 }
 
 /// contains some sumcheck info
@@ -93,7 +98,7 @@ pub struct ProverFifthMessage {
 #[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct ProverSixthMessage<E: PairingEngine> {
     pub z_ry: E::Fr,
-    pub proof_for_z_ry: (), // todo: replace this as a proof using commitment
+    pub proof_for_z_ry: Proof<E>
 }
 /// final message
 pub type ProverFinalMessage<E> = ProverSixthMessage<E>;
@@ -117,16 +122,20 @@ impl<E: PairingEngine> AHPForSpartan<E> {
     /// send commitment
     pub fn prover_first_round(
         state: ProverFirstState<E>,
-    ) -> Result<(ProverSecondState<E>, ProverFirstMessage), crate::Error> {
-        // todo: commit z
+        pp: &PublicParameter<E>
+    ) -> Result<(ProverSecondState<E>, ProverFirstMessage<E>), crate::Error> {
+        let z =
+            MLExtensionArray::from_vec(state.v.iter().chain(state.w.iter()).map(|x| *x).collect())?;
+        let commitment = MLPolyCommit::commit(pp, z.clone())?;
         Ok((
             ProverSecondState {
                 v: state.v,
                 w: state.w,
                 pk: state.pk,
+                z
             },
             ProverFirstMessage {
-                commitment: "replace this as commit(w)".into(),
+                commitment,
             },
         ))
     }
@@ -134,16 +143,18 @@ impl<E: PairingEngine> AHPForSpartan<E> {
     pub fn prover_second_round(
         state: ProverSecondState<E>,
         v_msg: VerifierFirstMessage<E::Fr>,
+        pp: &PublicParameter<E>
     ) -> Result<(ProverThirdState<E>, ProverSecondMessage<E>), crate::Error> {
         let pk = state.pk;
-        let z =
-            MLExtensionArray::from_vec(state.v.iter().chain(state.w.iter()).map(|x| *x).collect())?;
-        let r_v = v_msg.r_v;
-        let z_rv_0 = z.eval_at(&r_v)?;
+        let z = state.z;
+        let mut r_v = v_msg.r_v;
+        // extend r_v with zero
+        r_v.extend((0..(z.num_variables()? - ark_std::log2(state.v.len()) as usize)).map(|_|E::Fr::zero()));
+        let (z_rv_0, proof, _) = MLPolyCommit::open(pp, z.clone(), &r_v)?;
         let state = ProverThirdState { pk, z };
         let msg = ProverSecondMessage {
             z_rv_0,
-            proof_for_z_rv_0: (),
+            proof_for_z_rv_0: proof,
         };
         Ok((state, msg))
     }
@@ -257,12 +268,14 @@ impl<E: PairingEngine> AHPForSpartan<E> {
     pub fn prove_sixth_round(
         state: ProverSecondSumcheckState<E>,
         v_msg: VerifierFifthMessage<E::Fr>,
+        pp: &PublicParameter<E>
     ) -> Result<ProverFinalMessage<E>, crate::Error> {
         let mut r_y = state.ml_prover_state.randomness;
         r_y.push(v_msg.last_random_point);
+        let (z_ry, proof_for_z_ry, _) = MLPolyCommit::open(&pp,state.z, &r_y)?;
         let msg = ProverFinalMessage {
-            z_ry: state.z.eval_at(&r_y)?,
-            proof_for_z_ry: (),
+            z_ry,
+            proof_for_z_ry,
         };
         Ok(msg)
     }

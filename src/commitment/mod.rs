@@ -78,7 +78,7 @@ mod commit_bench{
             let (eval_result, proof,_)  = MLPolyCommit::open(&param.pp, poly_for_open, &point).expect("fail to open");
             end_timer!(timer);
             let timer = start_timer!(||format!("verify polynomial of {} variable (size = {})", nv, 1 << nv));
-            assert!(MLPolyCommit::verify(param.vp, commit, &point, eval_result, proof).expect("fail to verify"), "verification failed");
+            assert!(MLPolyCommit::verify(&param.vp, &commit, &point, eval_result, proof).expect("fail to verify"), "verification failed");
             end_timer!(timer);
         }
     }

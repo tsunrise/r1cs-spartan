@@ -27,6 +27,7 @@ pub use error::Error;
 use linear_sumcheck::data_structures::random::FeedableRNG;
 use linear_sumcheck::data_structures::Blake2s512Rng;
 use linear_sumcheck::ml_sumcheck::ahp::prover::ProverMsg;
+use crate::ahp::setup::{PublicParameter, VerifierParameter};
 
 /// module for interpret r1cs as ML Extension used by linear sumcheck
 pub mod data_structures;
@@ -54,7 +55,8 @@ impl<E: PairingEngine> Spartan<E> {
     /// * `pk`: prover key
     /// * `v`: public input
     /// * `w`: private input
-    pub fn prove(pk: IndexPK<E::Fr>, v: Vec<E::Fr>, w: Vec<E::Fr>) -> SResult<Proof<E>> {
+    /// * `pp`: public parameter
+    pub fn prove(pk: IndexPK<E::Fr>, v: Vec<E::Fr>, w: Vec<E::Fr>, pp: &PublicParameter<E>) -> SResult<Proof<E>> {
         let log_n = pk.log_n;
 
         let mut fs_rng = Blake2s512Rng::setup();
@@ -67,11 +69,11 @@ impl<E: PairingEngine> Spartan<E> {
 
         let ps = AHPForSpartan::prover_init(pk, v, w)?;
 
-        let (ps, pm1) = AHPForSpartan::prover_first_round(ps)?;
+        let (ps, pm1) = AHPForSpartan::prover_first_round(ps, pp)?;
         fs_rng.feed_randomness(&pm1)?;
         let vm = AHPForSpartan::<E>::sample_first_round(log_v, &mut fs_rng);
 
-        let (ps, pm2) = AHPForSpartan::prover_second_round(ps, vm)?;
+        let (ps, pm2) = AHPForSpartan::prover_second_round(ps, vm, pp)?;
         fs_rng.feed_randomness(&pm2)?;
         let vm = AHPForSpartan::<E>::sample_second_round(ps.pk.log_n, &mut fs_rng);
 
@@ -115,7 +117,7 @@ impl<E: PairingEngine> Spartan<E> {
         sumcheck2_msgs.push(pm);
         let vm = AHPForSpartan::<E>::sample_verify_second_sumcheck_final_round(&mut fs_rng);
 
-        let pm6 = AHPForSpartan::prove_sixth_round(ps, vm)?;
+        let pm6 = AHPForSpartan::prove_sixth_round(ps, vm, pp)?;
 
         Ok(Proof {
             prover_first_message: pm1,
@@ -128,7 +130,7 @@ impl<E: PairingEngine> Spartan<E> {
             prover_sixth_message: pm6,
         })
     }
-    pub fn verify(vk: IndexVK<E::Fr>, v: Vec<E::Fr>, proof: Proof<E>) -> SResult<bool> {
+    pub fn verify(vk: IndexVK<E::Fr>, v: Vec<E::Fr>, proof: Proof<E>, vp: &VerifierParameter<E>) -> SResult<bool> {
         let log_n = vk.log_n;
         let mut first_sumcheck_messages =
             LinkedList::from_iter(proof.first_sumcheck_messages.into_iter());
@@ -190,7 +192,7 @@ impl<E: PairingEngine> Spartan<E> {
         let pm = proof.prover_sixth_message;
         fs_rng.feed_randomness(&pm)?;
 
-        let result = AHPForSpartan::verify_sixth_round(vs, pm)?;
+        let result = AHPForSpartan::verify_sixth_round(vs, pm, vp)?;
 
         Ok(result)
     }

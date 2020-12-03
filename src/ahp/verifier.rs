@@ -19,6 +19,11 @@ use linear_sumcheck::ml_sumcheck::ahp::prover::ProverMsg as MLProverMsg;
 use linear_sumcheck::ml_sumcheck::ahp::verifier::VerifierMsg as MLVerifierMsg;
 use linear_sumcheck::ml_sumcheck::ahp::verifier::VerifierState as MLVerifierState;
 use linear_sumcheck::ml_sumcheck::ahp::AHPForMLSumcheck;
+use crate::commitment::commit::Commitment;
+use crate::commitment::MLPolyCommit;
+use crate::ahp::setup::VerifierParameter;
+use crate::commitment::open::Proof;
+
 /// r_v: randomness
 #[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct VerifierFirstMessage<F: Field> {
@@ -61,33 +66,45 @@ pub struct VerifierSecondState<E: PairingEngine> {
     pub log_v: usize,
     pub vk: IndexVK<E::Fr>,
     pub r_v: Vec<E::Fr>,
-    pub commit: Vec<u8>, // todo: replace this with real commitment
+    pub commit: Commitment<E>, // todo: replace this with real commitment
 }
 
 pub struct VerifierThirdState<E: PairingEngine> {
     pub vk: IndexVK<E::Fr>,
-    pub commit: Vec<u8>,
+    pub commit: Commitment<E>,
     pub tor: Vec<E::Fr>,
+    pub v: Vec<E::Fr>,
+    pub r_v: Vec<E::Fr>,
+    pub z_rv_0: E::Fr,
+    pub z_rv_0_proof: Proof<E>
 }
 
 /// first sumcheck state
 pub struct VerifierFirstSumcheckState<E: PairingEngine> {
     pub vk: IndexVK<E::Fr>,
-    pub commit: Vec<u8>,
+    pub commit: Commitment<E>,
     pub tor: Vec<E::Fr>,
     pub ml_verifier: MLVerifierState<E::Fr>,
+    pub v: Vec<E::Fr>,
+    pub r_v: Vec<E::Fr>,
+    pub z_rv_0: E::Fr,
+    pub z_rv_0_proof: Proof<E>
 }
 
 pub struct VerifierFourthState<E: PairingEngine> {
     pub vk: IndexVK<E::Fr>,
-    pub commit: Vec<u8>,
+    pub commit: Commitment<E>,
     pub tor: Vec<E::Fr>,
     pub first_verifier_state: MLVerifierState<E::Fr>,
+    pub v: Vec<E::Fr>,
+    pub r_v: Vec<E::Fr>,
+    pub z_rv_0: E::Fr,
+    pub z_rv_0_proof: Proof<E>
 }
 
 pub struct VerifierFifthState<E: PairingEngine> {
     pub vk: IndexVK<E::Fr>,
-    pub commit: Vec<u8>,
+    pub commit: Commitment<E>,
     pub r_a: E::Fr,
     pub r_b: E::Fr,
     pub r_c: E::Fr,
@@ -96,11 +113,15 @@ pub struct VerifierFifthState<E: PairingEngine> {
     pub vc: E::Fr,
     pub tor: Vec<E::Fr>,
     pub first_verifier_state: MLVerifierState<E::Fr>,
+    pub v: Vec<E::Fr>,
+    pub r_v: Vec<E::Fr>,
+    pub z_rv_0: E::Fr,
+    pub z_rv_0_proof: Proof<E>
 }
 
 pub struct VerifierSecondSumcheckState<E: PairingEngine> {
     pub vk: IndexVK<E::Fr>,
-    pub commit: Vec<u8>,
+    pub commit: Commitment<E>,
     pub va: E::Fr,
     pub vb: E::Fr,
     pub vc: E::Fr,
@@ -110,6 +131,10 @@ pub struct VerifierSecondSumcheckState<E: PairingEngine> {
     pub tor: Vec<E::Fr>,
     pub first_verifier_state: MLVerifierState<E::Fr>,
     pub second_verifier_state: MLVerifierState<E::Fr>,
+    pub v: Vec<E::Fr>,
+    pub r_v: Vec<E::Fr>,
+    pub z_rv_0: E::Fr,
+    pub z_rv_0_proof: Proof<E>
 }
 
 pub type VerifierSixthState<E> = VerifierSecondSumcheckState<E>;
@@ -126,7 +151,7 @@ impl<E: PairingEngine> AHPForSpartan<E> {
     /// receive commitment, generate r_v
     pub fn verify_first_round<R: RngCore>(
         state: VerifierFirstState<E>,
-        p_msg: ProverFirstMessage,
+        p_msg: ProverFirstMessage<E>,
         rng: &mut R,
     ) -> SResult<(VerifierSecondState<E>, VerifierFirstMessage<E::Fr>)> {
         let commit = p_msg.commitment;
@@ -159,21 +184,26 @@ impl<E: PairingEngine> AHPForSpartan<E> {
         rng: &mut R,
     ) -> SResult<(VerifierThirdState<E>, VerifierSecondMessage<E::Fr>)> {
         let z_rv_0 = p_msg.z_rv_0;
-        // todo: verify z_rv_0 is correct using proof
-
-        let vk = state.vk;
-        let v = MLExtensionArray::from_vec(state.v)?;
-        if v.eval_at(&state.r_v)? != z_rv_0 {
-            return Err(invalid_arg("public witness is inconsistent with proof"));
-        }
+        let z_rv_0_proof = p_msg.proof_for_z_rv_0;
+        // // todo: verify z_rv_0 is correct using proof (verification done last)
+        //
+        // let vk = state.vk;
+        // let v = MLExtensionArray::from_vec(state.v)?;
+        // if v.eval_at(&state.r_v)? != z_rv_0 {
+        //     return Err(invalid_arg("public witness is inconsistent with proof"));
+        // }
 
         // let eq = eq_extension(&tor)?;
 
-        let msg = Self::sample_second_round(vk.log_n, rng);
+        let msg = Self::sample_second_round(state.vk.log_n, rng);
         let state = VerifierThirdState {
-            vk,
+            vk: state.vk,
             commit: state.commit,
             tor: msg.tor.clone(),
+            v: state.v,
+            r_v: state.r_v,
+            z_rv_0,
+            z_rv_0_proof
         };
         Ok((state, msg))
     }
@@ -202,6 +232,10 @@ impl<E: PairingEngine> AHPForSpartan<E> {
             commit: state.commit,
             tor: state.tor,
             ml_verifier,
+            v: state.v,
+            r_v: state.r_v,
+            z_rv_0: state.z_rv_0,
+            z_rv_0_proof: state.z_rv_0_proof
         };
 
         Ok((next_state, None))
@@ -224,6 +258,10 @@ impl<E: PairingEngine> AHPForSpartan<E> {
             tor: state.tor,
             commit: state.commit,
             vk: state.vk,
+            v: state.v,
+            r_v: state.r_v,
+            z_rv_0: state.z_rv_0,
+            z_rv_0_proof: state.z_rv_0_proof
         };
         Ok((next_state, v_msg))
     }
@@ -252,6 +290,10 @@ impl<E: PairingEngine> AHPForSpartan<E> {
             commit: state.commit,
             tor: state.tor,
             first_verifier_state: ml_verifier,
+            v: state.v,
+            r_v: state.r_v,
+            z_rv_0: state.z_rv_0,
+            z_rv_0_proof: state.z_rv_0_proof
         };
         Ok((next_state, msg))
     }
@@ -300,6 +342,10 @@ impl<E: PairingEngine> AHPForSpartan<E> {
             vc,
             tor: state.tor,
             first_verifier_state: state.first_verifier_state,
+            v: state.v,
+            r_v: state.r_v,
+            z_rv_0: state.z_rv_0,
+            z_rv_0_proof: state.z_rv_0_proof
         };
 
         Ok((next_state, msg))
@@ -337,6 +383,10 @@ impl<E: PairingEngine> AHPForSpartan<E> {
             tor: state.tor,
             first_verifier_state: state.first_verifier_state,
             second_verifier_state: ml_verifier,
+            v: state.v,
+            r_v: state.r_v,
+            z_rv_0: state.z_rv_0,
+            z_rv_0_proof: state.z_rv_0_proof
         };
 
         Ok((next_state, None))
@@ -393,10 +443,24 @@ impl<E: PairingEngine> AHPForSpartan<E> {
     pub fn verify_sixth_round(
         state: VerifierSixthState<E>,
         p_msg: ProverFinalMessage<E>,
+        vp: &VerifierParameter<E>
     ) -> SResult<bool> {
-        let z_ry = p_msg.z_ry;
 
         let eq = eq_extension(&state.tor)?;
+
+        // verify if public witness extension asserted by prover is correct
+        let mut r_v_0 = state.r_v.clone(); // extend r_v with zero
+        r_v_0.extend((0..(state.vk.log_n - ark_std::log2(state.v.len()) as usize)).map(|_|E::Fr::zero()));
+        if !MLPolyCommit::verify(vp, &state.commit, &r_v_0, state.z_rv_0, state.z_rv_0_proof)? {
+            return Err(invalid_arg("public witness failed in commitment check"));
+        };
+
+        let vk = state.vk;
+        let v = MLExtensionArray::from_vec(state.v)?;
+        if v.eval_at(&state.r_v)? != state.z_rv_0 {
+            return Err(invalid_arg("public witness is inconsistent with proof"));
+        }
+
         // verify first sumcheck
         let first_subclaim = AHPForMLSumcheck::check_and_generate_subclaim(
             state.first_verifier_state,
@@ -415,8 +479,7 @@ impl<E: PairingEngine> AHPForSpartan<E> {
             }
         }
 
-        // todo: verify if z_ry is correct using proof
-
+        let z_ry = p_msg.z_ry;
         // verify second sumcheck
         let second_claimed_sum =
             state.r_a * &state.va + &(state.r_b * &state.vb) + &(state.r_c * &state.vc);
@@ -427,7 +490,6 @@ impl<E: PairingEngine> AHPForSpartan<E> {
         let expected = second_subclaim.expected_evaluation;
         let (r_a, r_b, r_c) = (state.r_a, state.r_b, state.r_c);
         let r_y = second_subclaim.point;
-        let vk = state.vk;
         let a_rx_ry = vk.matrix_a.eval_on_x(&r_x)?.eval_at(&r_y)?;
         let b_rx_ry = vk.matrix_b.eval_on_x(&r_x)?.eval_at(&r_y)?;
         let c_rx_ry = vk.matrix_c.eval_on_x(&r_x)?.eval_at(&r_y)?;
@@ -436,8 +498,16 @@ impl<E: PairingEngine> AHPForSpartan<E> {
         if expected != actual {
             return Err(crate::Error::WrongWitness(Some(
                 "Cannot verify matrix A, B, C".into(),
-            )));
+            )))
         }
+
+        // verify if z_ry is correct using proof
+        if !MLPolyCommit::verify(vp, &state.commit, &r_y, z_ry, p_msg.proof_for_z_ry)? {
+            return Err(crate::Error::WrongWitness(Some(
+                "Cannot verify z_ry".into()
+            )))
+        };
+
         Ok(true)
     }
 }

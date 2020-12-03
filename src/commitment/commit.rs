@@ -6,7 +6,8 @@ use linear_sumcheck::data_structures::MLExtensionArray;
 use linear_sumcheck::data_structures::ml_extension::MLExtension;
 use ark_ec::msm::VariableBaseMSM;
 use ark_ff::PrimeField;
-
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Read, SerializationError, Write};
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct Commitment<E: PairingEngine>{
     pub nv: usize,
     pub g_product: E::G1Affine,

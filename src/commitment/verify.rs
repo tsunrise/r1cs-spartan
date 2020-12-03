@@ -9,7 +9,7 @@ use ark_ec::msm::FixedBaseMSM;
 
 
 impl<E: PairingEngine> MLPolyCommit<E> {
-    pub fn verify(vp: VerifierParameter<E>,commitment: Commitment<E>, point: &[E::Fr], eval: E::Fr, proof: Proof<E>)
+    pub fn verify(vp: &VerifierParameter<E>,commitment: &Commitment<E>, point: &[E::Fr], eval: E::Fr, proof: Proof<E>)
     ->SResult<bool>{
         let left =
             E::pairing(commitment.g_product.into_projective() - &vp.g.mul(eval), vp.h);
@@ -90,7 +90,7 @@ mod sanity {
         }
 
 
-        let result = MLPolyCommit::verify(vp, com, &point, ev, pf).expect("cannot verify");
+        let result = MLPolyCommit::verify(&vp, &com, &point, ev, pf).expect("cannot verify");
         assert!(result);
     }
 }

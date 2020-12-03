@@ -3,10 +3,14 @@ use crate::error::SResult;
 use crate::test_utils::{generate_circuit_with_random_input, TestCurve, TestCurveFr};
 use ark_ff::test_rng;
 use rand::RngCore;
+use crate::commitment::MLPolyCommit;
 
 fn test_circuit<R: RngCore>(log_n: usize, log_v: usize, rng: &mut R) -> SResult<()> {
     let num_public = 1 << log_v;
     let num_private = (1 << log_n) - num_public;
+
+    let (pp, vp, _) = MLPolyCommit::keygen(log_n, rng)?;
+
     let (r1cs, v, w) =
         generate_circuit_with_random_input::<TestCurveFr, _>(num_public, num_private, true, 1, rng);
 
@@ -18,10 +22,10 @@ fn test_circuit<R: RngCore>(log_n: usize, log_v: usize, rng: &mut R) -> SResult<
     let ps = AHPForSpartan::<TestCurve>::prover_init(pk, v.to_vec(), w)?;
     let vs = AHPForSpartan::verifier_init(vk, v)?;
 
-    let (ps, pm) = AHPForSpartan::prover_first_round(ps)?;
+    let (ps, pm) = AHPForSpartan::prover_first_round(ps, &pp)?;
     let (vs, vm) = AHPForSpartan::verify_first_round(vs, pm, rng)?;
 
-    let (ps, pm) = AHPForSpartan::prover_second_round(ps, vm)?;
+    let (ps, pm) = AHPForSpartan::prover_second_round(ps, vm, &pp)?;
     let (vs, vm) = AHPForSpartan::verify_second_round(vs, pm, rng)?;
 
     let (mut ps, pm) = AHPForSpartan::prover_third_round(ps, vm)?;
@@ -55,8 +59,8 @@ fn test_circuit<R: RngCore>(log_n: usize, log_v: usize, rng: &mut R) -> SResult<
     let (ps, pm) = AHPForSpartan::prove_second_sumcheck_round(ps, vm)?;
     let (vs, vm) = AHPForSpartan::verify_second_sumcheck_final_round(vs, pm, rng)?;
 
-    let pm = AHPForSpartan::prove_sixth_round(ps, vm)?;
-    let result = AHPForSpartan::verify_sixth_round(vs, pm)?;
+    let pm = AHPForSpartan::prove_sixth_round(ps, vm, &pp)?;
+    let result = AHPForSpartan::verify_sixth_round(vs, pm, &vp)?;
 
     if result {
         Ok(())

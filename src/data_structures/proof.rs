@@ -9,7 +9,7 @@ use linear_sumcheck::ml_sumcheck::ahp::prover::ProverMsg as MLProverMsg;
 /// message sent by the prover
 #[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct Proof<E: PairingEngine> {
-    pub prover_first_message: ProverFirstMessage,
+    pub prover_first_message: ProverFirstMessage<E>,
     pub prover_second_message: ProverSecondMessage<E>,
     pub prover_third_message: ProverThirdMessage,
     pub first_sumcheck_messages: Vec<MLProverMsg<E::Fr>>,

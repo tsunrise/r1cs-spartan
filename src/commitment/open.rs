@@ -6,7 +6,9 @@ use crate::error::SResult;
 use linear_sumcheck::data_structures::ml_extension::MLExtension;
 use ark_ff::{One, Zero, PrimeField};
 use ark_ec::msm::VariableBaseMSM;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Read, SerializationError, Write};
 
+#[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct Proof<E: PairingEngine> {
     pub h: E::G2Affine,
     pub proofs: Vec<E::G2Affine>

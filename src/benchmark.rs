@@ -6,6 +6,8 @@ use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use crate::data_structures::proof::Proof;
 use crate::test_utils::{generate_circuit_with_random_input, TestCurve, TestCurveFr};
 use ark_ec::PairingEngine;
+use crate::commitment::MLPolyCommit;
+use crate::ahp::AHPForSpartan;
 
 fn test_circuit<E: PairingEngine>(
     matrices: ConstraintMatrices<E::Fr>,
@@ -19,13 +21,19 @@ fn test_circuit<E: PairingEngine>(
         matrices.a_num_non_zero + matrices.b_num_non_zero + matrices.c_num_non_zero
     );
 
+    let mut rng = test_rng();
+
+    let timer = start_timer!(|| "Setup");
+    let (pp, vp) = AHPForSpartan::setup( ark_std::log2(matrices.a.len()) as usize, &mut rng)?;
+    end_timer!(timer);
+
     let timer = start_timer!(|| "Index");
     let index_pk = Spartan::<E>::index(matrices.a, matrices.b, matrices.c)?;
     let index_vk = index_pk.vk();
     end_timer!(timer);
 
     let timer = start_timer!(|| "Prove Circuit");
-    let proof = Spartan::<E>::prove(index_pk, v.to_vec(), w)?;
+    let proof = Spartan::<E>::prove(index_pk, v.to_vec(), w, &pp)?;
     let proof_serialized = {
         let mut data: Vec<u8> = Vec::new();
         proof.serialize(&mut data)?;
@@ -36,7 +44,7 @@ fn test_circuit<E: PairingEngine>(
     println!("Communication Cost: {} bytes", proof_serialized.len());
     let timer = start_timer!(|| "Verify");
     let proof = Proof::<E>::deserialize(&proof_serialized[..])?;
-    let result = Spartan::verify(index_vk, v, proof)?;
+    let result = Spartan::verify(index_vk, v, proof, &vp)?;
     assert!(result);
     end_timer!(timer);
     println!();
