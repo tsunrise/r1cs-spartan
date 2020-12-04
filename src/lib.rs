@@ -15,7 +15,7 @@ mod benchmark;
 pub mod commitment;
 
 use crate::ahp::indexer::{IndexPK, IndexVK};
-use crate::ahp::AHPForSpartan;
+use crate::ahp::MLProofForR1CS;
 use crate::data_structures::proof::Proof;
 use crate::error::{invalid_arg, SResult};
 use ark_ec::PairingEngine;
@@ -38,17 +38,16 @@ mod error;
 #[cfg(test)]
 pub(crate) mod test_utils;
 
-pub struct Spartan<E: PairingEngine>(#[doc(hidden)] PhantomData<E>);
+pub struct MLArgumentForR1CS<E: PairingEngine>(#[doc(hidden)] PhantomData<E>);
 
-//todo: change to MLArgumentForR1CS
-impl<E: PairingEngine> Spartan<E> {
+impl<E: PairingEngine> MLArgumentForR1CS<E> {
     /// generate prover key and verifier key
     pub fn index(
         matrix_a: Matrix<E::Fr>,
         matrix_b: Matrix<E::Fr>,
         matrix_c: Matrix<E::Fr>,
     ) -> Result<IndexPK<E::Fr>, crate::Error> {
-        AHPForSpartan::<E>::index(matrix_a, matrix_b, matrix_c)
+        MLProofForR1CS::<E>::index(matrix_a, matrix_b, matrix_c)
     }
 
     /// prove the circuit, giving the index
@@ -67,57 +66,57 @@ impl<E: PairingEngine> Spartan<E> {
 
         let log_v = log2(v.len()) as usize;
 
-        let ps = AHPForSpartan::prover_init(pk, v, w)?;
+        let ps = MLProofForR1CS::prover_init(pk, v, w)?;
 
-        let (ps, pm1) = AHPForSpartan::prover_first_round(ps, pp)?;
+        let (ps, pm1) = MLProofForR1CS::prover_first_round(ps, pp)?;
         fs_rng.feed_randomness(&pm1)?;
-        let vm = AHPForSpartan::<E>::sample_first_round(log_v, &mut fs_rng);
+        let vm = MLProofForR1CS::<E>::sample_first_round(log_v, &mut fs_rng);
 
-        let (ps, pm2) = AHPForSpartan::prover_second_round(ps, vm, pp)?;
+        let (ps, pm2) = MLProofForR1CS::prover_second_round(ps, vm, pp)?;
         fs_rng.feed_randomness(&pm2)?;
-        let vm = AHPForSpartan::<E>::sample_second_round(ps.pk.log_n, &mut fs_rng);
+        let vm = MLProofForR1CS::<E>::sample_second_round(ps.pk.log_n, &mut fs_rng);
 
-        let (mut ps, pm3) = AHPForSpartan::prover_third_round(ps, vm)?;
+        let (mut ps, pm3) = MLProofForR1CS::prover_third_round(ps, vm)?;
         fs_rng.feed_randomness(&pm3)?;
-        let mut vm = AHPForSpartan::<E>::sample_third_round();
+        let mut vm = MLProofForR1CS::<E>::sample_third_round();
 
         let mut sumcheck1_msgs = Vec::with_capacity(log_n);
         for _ in 0..(log_n - 1) {
-            let (ps_new, pm) = AHPForSpartan::prove_first_sumcheck_round(ps, vm)?;
+            let (ps_new, pm) = MLProofForR1CS::prove_first_sumcheck_round(ps, vm)?;
             ps = ps_new;
             fs_rng.feed_randomness(&pm)?;
             sumcheck1_msgs.push(pm);
-            vm = AHPForSpartan::<E>::sample_verify_first_sumcheck_ongoing_round(&mut fs_rng);
+            vm = MLProofForR1CS::<E>::sample_verify_first_sumcheck_ongoing_round(&mut fs_rng);
         }
 
-        let (ps, pm) = AHPForSpartan::prove_first_sumcheck_round(ps, vm)?;
+        let (ps, pm) = MLProofForR1CS::prove_first_sumcheck_round(ps, vm)?;
         fs_rng.feed_randomness(&pm)?;
         sumcheck1_msgs.push(pm);
-        let vm = AHPForSpartan::<E>::sample_verify_first_sumcheck_final_round(&mut fs_rng);
+        let vm = MLProofForR1CS::<E>::sample_verify_first_sumcheck_final_round(&mut fs_rng);
 
-        let (ps, pm4) = AHPForSpartan::prove_fourth_round(ps, vm)?;
+        let (ps, pm4) = MLProofForR1CS::prove_fourth_round(ps, vm)?;
         fs_rng.feed_randomness(&pm4)?;
-        let vm = AHPForSpartan::<E>::sample_verify_fourth_round(&mut fs_rng);
+        let vm = MLProofForR1CS::<E>::sample_verify_fourth_round(&mut fs_rng);
 
-        let (mut ps, pm5) = AHPForSpartan::prove_fifth_round(ps, vm)?;
+        let (mut ps, pm5) = MLProofForR1CS::prove_fifth_round(ps, vm)?;
         fs_rng.feed_randomness(&pm5)?;
-        let mut vm = AHPForSpartan::<E>::sample_verify_fifth_round();
+        let mut vm = MLProofForR1CS::<E>::sample_verify_fifth_round();
 
         let mut sumcheck2_msgs = Vec::with_capacity(log_n);
         for _ in 0..(log_n - 1) {
-            let (ps_new, pm) = AHPForSpartan::prove_second_sumcheck_round(ps, vm)?;
+            let (ps_new, pm) = MLProofForR1CS::prove_second_sumcheck_round(ps, vm)?;
             ps = ps_new;
             fs_rng.feed_randomness(&pm)?;
             sumcheck2_msgs.push(pm);
-            vm = AHPForSpartan::<E>::sample_verify_second_sumcheck_ongoing_round(&mut fs_rng);
+            vm = MLProofForR1CS::<E>::sample_verify_second_sumcheck_ongoing_round(&mut fs_rng);
         }
 
-        let (ps, pm) = AHPForSpartan::prove_second_sumcheck_round(ps, vm)?;
+        let (ps, pm) = MLProofForR1CS::prove_second_sumcheck_round(ps, vm)?;
         fs_rng.feed_randomness(&pm)?;
         sumcheck2_msgs.push(pm);
-        let vm = AHPForSpartan::<E>::sample_verify_second_sumcheck_final_round(&mut fs_rng);
+        let vm = MLProofForR1CS::<E>::sample_verify_second_sumcheck_final_round(&mut fs_rng);
 
-        let pm6 = AHPForSpartan::prove_sixth_round(ps, vm, pp)?;
+        let pm6 = MLProofForR1CS::prove_sixth_round(ps, vm, pp)?;
 
         Ok(Proof {
             prover_first_message: pm1,
@@ -143,56 +142,56 @@ impl<E: PairingEngine> Spartan<E> {
         fs_rng.feed_randomness(&vk.matrix_c)?;
         fs_rng.feed_randomness(&v)?;
 
-        let vs = AHPForSpartan::<E>::verifier_init(vk, v)?;
+        let vs = MLProofForR1CS::<E>::verifier_init(vk, v)?;
 
         let pm = proof.prover_first_message;
         fs_rng.feed_randomness(&pm)?;
-        let (vs, _) = AHPForSpartan::verify_first_round(vs, pm, &mut fs_rng)?;
+        let (vs, _) = MLProofForR1CS::verify_first_round(vs, pm, &mut fs_rng)?;
 
         let pm = proof.prover_second_message;
         fs_rng.feed_randomness(&pm)?;
-        let (vs, _) = AHPForSpartan::verify_second_round(vs, pm, &mut fs_rng)?;
+        let (vs, _) = MLProofForR1CS::verify_second_round(vs, pm, &mut fs_rng)?;
 
         let pm = proof.prover_third_message;
         fs_rng.feed_randomness(&pm)?;
-        let (mut vs, _) = AHPForSpartan::verify_third_round(vs, pm)?;
+        let (mut vs, _) = MLProofForR1CS::verify_third_round(vs, pm)?;
 
         for _ in 0..(log_n - 1) {
             let pm = Self::try_pop(&mut first_sumcheck_messages)?;
             fs_rng.feed_randomness(&pm)?;
             let (vs_new, _) =
-                AHPForSpartan::verify_first_sumcheck_ongoing_round(vs, pm, &mut fs_rng)?;
+                MLProofForR1CS::verify_first_sumcheck_ongoing_round(vs, pm, &mut fs_rng)?;
             vs = vs_new;
         }
 
         let pm = Self::try_pop(&mut first_sumcheck_messages)?;
         fs_rng.feed_randomness(&pm)?;
-        let (vs, _) = AHPForSpartan::verify_first_sumcheck_final_round(vs, pm, &mut fs_rng)?;
+        let (vs, _) = MLProofForR1CS::verify_first_sumcheck_final_round(vs, pm, &mut fs_rng)?;
 
         let pm = proof.prover_fourth_message;
         fs_rng.feed_randomness(&pm)?;
-        let (vs, _) = AHPForSpartan::verify_fourth_round(vs, pm, &mut fs_rng)?;
+        let (vs, _) = MLProofForR1CS::verify_fourth_round(vs, pm, &mut fs_rng)?;
 
         let pm = proof.prover_fifth_message;
         fs_rng.feed_randomness(&pm)?;
-        let (mut vs, _) = AHPForSpartan::verify_fifth_round(vs, pm)?;
+        let (mut vs, _) = MLProofForR1CS::verify_fifth_round(vs, pm)?;
 
         for _ in 0..(log_n - 1) {
             let pm = Self::try_pop(&mut second_sumcheck_messages)?;
             fs_rng.feed_randomness(&pm)?;
             let (vs_new, _) =
-                AHPForSpartan::verify_second_sumcheck_ongoing_round(vs, pm, &mut fs_rng)?;
+                MLProofForR1CS::verify_second_sumcheck_ongoing_round(vs, pm, &mut fs_rng)?;
             vs = vs_new;
         }
 
         let pm = Self::try_pop(&mut second_sumcheck_messages)?;
         fs_rng.feed_randomness(&pm)?;
-        let (vs, _) = AHPForSpartan::verify_second_sumcheck_final_round(vs, pm, &mut fs_rng)?;
+        let (vs, _) = MLProofForR1CS::verify_second_sumcheck_final_round(vs, pm, &mut fs_rng)?;
 
         let pm = proof.prover_sixth_message;
         fs_rng.feed_randomness(&pm)?;
 
-        let result = AHPForSpartan::verify_sixth_round(vs, pm, vp)?;
+        let result = MLProofForR1CS::verify_sixth_round(vs, pm, vp)?;
 
         Ok(result)
     }

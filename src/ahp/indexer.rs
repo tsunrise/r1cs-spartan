@@ -1,4 +1,4 @@
-use crate::ahp::AHPForSpartan;
+use crate::ahp::MLProofForR1CS;
 use crate::data_structures::r1cs_reader::MatrixExtension;
 use crate::error::invalid_arg;
 use ark_ec::PairingEngine;
@@ -36,8 +36,8 @@ impl<F: Field> IndexPK<F> {
         }
     }
 }
-// todo: change the name to MLProofForR1CS
-impl<E: PairingEngine> AHPForSpartan<E> {
+
+impl<E: PairingEngine> MLProofForR1CS<E> {
     pub fn index(
         matrix_a: Matrix<E::Fr>,
         matrix_b: Matrix<E::Fr>,

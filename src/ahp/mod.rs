@@ -9,4 +9,4 @@ pub mod verifier;
 #[cfg(test)]
 mod tests;
 
-pub struct AHPForSpartan<E: PairingEngine>(#[doc(hidden)] PhantomData<E>);
+pub struct MLProofForR1CS<E: PairingEngine>(#[doc(hidden)] PhantomData<E>);

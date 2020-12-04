@@ -12,7 +12,7 @@ use crate::ahp::verifier::{
     VerifierFifthMessage, VerifierFirstMessage, VerifierFourthMessage, VerifierSecondMessage,
     VerifierThirdMessage,
 };
-use crate::ahp::AHPForSpartan;
+use crate::ahp::MLProofForR1CS;
 use crate::data_structures::eq::eq_extension;
 use crate::error::{invalid_arg, SResult};
 use ark_ec::PairingEngine;
@@ -103,7 +103,7 @@ pub struct ProverSixthMessage<E: PairingEngine> {
 /// final message
 pub type ProverFinalMessage<E> = ProverSixthMessage<E>;
 
-impl<E: PairingEngine> AHPForSpartan<E> {
+impl<E: PairingEngine> MLProofForR1CS<E> {
     /// initialize the prover
     /// * `v`: public input, whose size should be power of 2
     pub fn prover_init(

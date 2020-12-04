@@ -8,7 +8,7 @@ use crate::ahp::prover::{
     ProverFifthMessage, ProverFinalMessage, ProverFirstMessage, ProverFourthMessage,
     ProverSecondMessage, ProverThirdMessage,
 };
-use crate::ahp::AHPForSpartan;
+use crate::ahp::MLProofForR1CS;
 use crate::data_structures::eq::eq_extension;
 use crate::error::{invalid_arg, SResult};
 use ark_ec::PairingEngine;
@@ -139,7 +139,7 @@ pub struct VerifierSecondSumcheckState<E: PairingEngine> {
 
 pub type VerifierSixthState<E> = VerifierSecondSumcheckState<E>;
 
-impl<E: PairingEngine> AHPForSpartan<E> {
+impl<E: PairingEngine> MLProofForR1CS<E> {
     pub fn verifier_init(vk: IndexVK<E::Fr>, v: Vec<E::Fr>) -> SResult<VerifierFirstState<E>> {
         if !v.len().is_power_of_two() || v.len() > vk.matrix_a.num_constraints {
             return Err(invalid_arg("public input should be power of two and has size smaller than number of constraints"));
