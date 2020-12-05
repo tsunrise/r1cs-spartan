@@ -28,7 +28,7 @@ mod commit_bench{
     use ark_ec::{PairingEngine};
     use ark_ff::UniformRand;
     const NV_RANGE_LOW: usize = 8;
-    const NV_RANGE_HIGH: usize = 12;
+    const NV_RANGE_HIGH: usize = 15;
     type E = TestCurve;
     type Fr = <E as PairingEngine>::Fr;
 

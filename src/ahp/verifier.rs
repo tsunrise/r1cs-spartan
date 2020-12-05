@@ -185,7 +185,7 @@ impl<E: PairingEngine> MLProofForR1CS<E> {
     ) -> SResult<(VerifierThirdState<E>, VerifierSecondMessage<E::Fr>)> {
         let z_rv_0 = p_msg.z_rv_0;
         let z_rv_0_proof = p_msg.proof_for_z_rv_0;
-        // // todo: verify z_rv_0 is correct using proof (verification done last)
+        // verify z_rv_0 is correct using proof (verification done last)
         //
         // let vk = state.vk;
         // let v = MLExtensionArray::from_vec(state.v)?;

@@ -148,7 +148,7 @@ mod tests{
         let mut rng1 = test_rng();
         let mut rng2 = test_rng();
         type E = TestCurve;
-        let (pp_actual, vp_actual, t) = MLPolyCommit::<E>::keygen(5, &mut rng1).unwrap();
+        let (pp_actual, _, _) = MLPolyCommit::<E>::keygen(5, &mut rng1).unwrap();
         let pp_expected = dummy_keygen::<_, E>(5, &mut rng2).unwrap();
 
         assert!(pp_actual.h == pp_expected.h.into_projective());

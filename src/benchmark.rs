@@ -6,7 +6,6 @@ use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use crate::data_structures::proof::Proof;
 use crate::test_utils::{generate_circuit_with_random_input, TestCurve, TestCurveFr};
 use ark_ec::PairingEngine;
-use crate::commitment::MLPolyCommit;
 use crate::ahp::MLProofForR1CS;
 
 fn test_circuit<E: PairingEngine>(
@@ -58,10 +57,6 @@ fn benchmark() {
     type F = TestCurveFr;
     let mut rng = test_rng();
 
-    println!(
-        "Spartan Benchmark\nNote: As commitment scheme has not been used, \
-    the runtime does not include commit time. \n"
-    );
 
     println!(
         "Benchmark: Prover and Verifier Runtime with different matrix size with same sparsity\n"
